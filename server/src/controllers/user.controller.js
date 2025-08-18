@@ -3,8 +3,8 @@ import {ApiError} from "../utils/ApiError.js"
 import { User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
-import jwt from "jsonwebtoken"
-import mongoose from "mongoose";
+// import jwt from "jsonwebtoken"
+// import mongoose from "mongoose";
 // import { sendVerificationEmail } from "../utils/sendEmail.js";
 
 
@@ -28,11 +28,11 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { fullName, email, username, password } = req.body;
+  const { fullName, email, username, password,phone } = req.body;
 
 
   if (
-    [fullName, email, username, password].some(
+    [fullName, email, username, password,phone].some(
       (field) => typeof field !== "string" || field.trim() === ""
     )
   ) {
@@ -40,7 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const existedUser = await User.findOne({
-    $or: [{ username }, { email }],
+    $or: [{ username }, { email }, {phone}],
   });
   if (existedUser) {
     throw new ApiError(409, "User with email or username already exists");
@@ -82,6 +82,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const user = await User.create({
     fullName,
     email,
+    phone,
     password,
     username: username.toLowerCase(),
     avatar: {
