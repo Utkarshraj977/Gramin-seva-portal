@@ -3,7 +3,7 @@ import mongoose, {Schema} from "mongoose";
 
 const studentSchema = new Schema(
     {
-        class:{
+        clas:{
             type:String,
             required: true,
         },
@@ -22,9 +22,9 @@ const studentSchema = new Schema(
             required: true,
         },
 
-        userInfo:{
-            type: Schema.Types.ObjectId,
-            ref: "User"
+        userInfo: {
+        type: Schema.Types.Mixed,
+        required: true
         },
         StudentKey:{
             type:String,

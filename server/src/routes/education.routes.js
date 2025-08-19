@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   createDetail,
+  loginTeacher,
+  getAllStudent,
 } from "../controllers/education.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";  // ✅ import added
@@ -17,5 +19,9 @@ router.route("/register").post(
   ]),
   createDetail
 );
+
+
+router.route("/login").post(loginTeacher)
+router.route("/allstudent").post(getAllStudent)
 
 export default router;
