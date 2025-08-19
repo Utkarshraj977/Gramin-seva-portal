@@ -3,10 +3,12 @@ import mongoose, {Schema} from "mongoose";
 
 const educationSchema = new Schema(
     {
-        Education_certificate:{
-            type:String,
-            required: true,
+        
+        Education_certificate: {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true }
         },
+
         
         fee:{
             type:String,
@@ -22,13 +24,13 @@ const educationSchema = new Schema(
             type:String,
             required: true,
         },
-        Start_time:{
-            type:String,
-            required: false,
+        Start_time: {  
+            type: Date,
+            required: false
         },
-        End_time:{
-            type:String,
-            required: false,
+        End_time: {   
+            type: Date,
+            required: false
         },
         isEducator:{
             type:Boolean,
@@ -40,10 +42,12 @@ const educationSchema = new Schema(
                 ref: "Student"
             }
         ],
-        userInfo:{
-            type: Schema.Types.ObjectId,
-            ref: "User"
+
+        userInfo: {
+        type: Schema.Types.Mixed,
+        required: true
         },
+
         EducatorKey:{
             type:String,
             required:true
