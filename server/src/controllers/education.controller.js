@@ -4,6 +4,7 @@ import { User} from "../models/user.model.js"
 import { Education} from "../models/educationAdmin.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { Student} from "../models/educationStudent.model.js"
 
 const createDetail = asyncHandler(async (req, res) => {
   const { 
@@ -110,7 +111,6 @@ const loginTeacher = asyncHandler(async (req, res) => {
 
 
 const getAllStudent = asyncHandler(async (req, res) => {
-  // find education details of the logged-in educator
   const existingEducation = await Education.findOne({
     "userInfo._id": req.user?._id,
     isEducator: true
@@ -123,13 +123,36 @@ const getAllStudent = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       200,
-      existingEducation.student, // sirf students bhejenge
+      existingEducation.student, 
       "All students fetched successfully"
     )
   );
 });
 
+const teacherSumbit = asyncHandler(async (req, res) => {
+  const { username } = req.params; 
 
-export {createDetail,loginTeacher,getAllStudent}
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  const updatedStudent = await Student.findOneAndUpdate(
+    { "userInfo.username": username.toLowerCase() },
+    { $set: { message: "selected" } },
+    { new: true }
+  ).select("-userInfo.password -userInfo.refreshToken -__v");
+
+  if (!updatedStudent) {
+    throw new ApiError(404, "Student not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, updatedStudent, "Message updated for student successfully")
+  );
+});
+
+
+
+export {createDetail,loginTeacher,getAllStudent,teacherSumbit}
 
  

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import {
   createDetail,
   loginStudent,
+  getAllTeacher,
+  slectTeacher,
 //   getAllStudent,
 } from "../controllers/student.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -14,6 +16,7 @@ router.route("/register").post(createDetail);
 
 
 router.route("/login").post(loginStudent)
-// router.route("/allstudent").post(getAllStudent)
+router.route("/allteacher").post(getAllTeacher)
+router.route("/allteacher/:username").get(verifyJWT, slectTeacher)
 
 export default router;

@@ -36,12 +36,13 @@ const educationSchema = new Schema(
             type:Boolean,
             required: true,
         },
-        student:[
-            {
-                type: Schema.Types.ObjectId,
-                ref: "Student"
-            }
+        student: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }
         ],
+
 
         userInfo: {
         type: Schema.Types.Mixed,

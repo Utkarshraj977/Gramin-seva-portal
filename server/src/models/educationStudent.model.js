@@ -34,10 +34,7 @@ const studentSchema = new Schema(
             type:String,
             required:false
         },
-        massage:{
-            type:String,
-            required:false
-        }
+        message: { type: String, default: "" }
         
     },
     {

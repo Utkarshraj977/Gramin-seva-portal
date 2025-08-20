@@ -69,4 +69,55 @@ const loginStudent = asyncHandler(async (req, res) => {
      ));
 })
 
-export {createDetail,loginStudent}
+
+const getAllTeacher = asyncHandler(async (req, res) => {
+  const allTeacher = await Education.find({})
+    .populate("student", "-password -refreshToken -__v");
+
+  if (!allTeacher) {
+    throw new ApiError(404, "no any teacher");
+  }
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      allTeacher, 
+      "All teacher fetched successfully"
+    )
+  );
+});
+
+
+const slectTeacher = asyncHandler(async (req, res) => {
+  const { username } = req.params; 
+  const studentId = req.user?._id;
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "Username is missing");
+  }
+
+  if (!studentId) {
+    throw new ApiError(400, "Student not logged in");
+  }
+
+  const studentData = await User.findById(req.user._id).select("-password -refreshToken -__v");
+
+
+  if (!studentData) {
+    throw new ApiError(404, "Student not found");
+  }
+  const updatedTeacher = await Education.findOneAndUpdate(
+  { "userInfo.username": username.toLowerCase() },
+  { $addToSet: { student: studentId } },
+  { new: true }
+  ).populate("student", "-password -refreshToken -__v");
+  if (!updatedTeacher) {
+    throw new ApiError(404, "Teacher not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, updatedTeacher, "Student embedded in teacher successfully")
+  );
+});
+
+
+export {createDetail,loginStudent,getAllTeacher,slectTeacher}
