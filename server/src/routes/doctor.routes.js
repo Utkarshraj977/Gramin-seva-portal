@@ -1,11 +1,18 @@
-import { doctorRegister, doctorLogin } from "../controllers/doctor.controller.js";
+import { doctorRegister,
+         doctorLogin,
+         getalldoctor,
+         getdoctorbyid,
+         deleteServePatient,
+         alldoctorbycatog,
+         alldoctorbytype 
+        } from "../controllers/doctor.controller.js";
 import { Router } from "express";
 import { upload } from "../middlewares/multer.middleware.js"
-
+import {verifyJWT} from "../middlewares/auth.middleware.js"
 
 const router = Router()
 
-router.route("/doctorregister").post(
+router.route("/doctorregister").post(verifyJWT,
     upload.fields([
         {
             name: "Doctor_certificate",
@@ -14,7 +21,11 @@ router.route("/doctorregister").post(
     ]),
     doctorRegister
 )
-
-router.route("/doctorlogin").post(doctorLogin)
+router.route("/doctorlogin").post(verifyJWT,doctorLogin)
+router.route("/getdoctorbyid/:id").get(verifyJWT,getdoctorbyid)
+router.route("/getalldoctor").get(verifyJWT,getalldoctor)
+router.route("/deleteServePatient/:patientid").patch(verifyJWT,deleteServePatient)
+router.route("/alldoctorbycatog/:category").get(verifyJWT,alldoctorbycatog)
+router.route("/alldoctorbytype/:type").get(verifyJWT,alldoctorbytype)
 
 export default router
