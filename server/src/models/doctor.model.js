@@ -33,7 +33,7 @@ const doctorSchema = new Schema(
         },
         patient: [
             {
-                type: Schema.Types.ObjectId,
+                type: Schema.Types.Mixed,
                 ref: "Patient"
             }
         ],
@@ -63,7 +63,7 @@ doctorSchema.pre("save", async function (next) {
     if(!this.isModified("DoctorKey")) return next();
 
     this.DoctorKey= await bcrypt.hash(this.DoctorKey, 10)
-    next()
+    next();
 })
 
 doctorSchema.methods.isDoctorKeyCorrect = async function(DoctorKey){
