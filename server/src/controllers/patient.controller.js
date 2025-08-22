@@ -78,7 +78,7 @@ const selectPatient=asyncHandler(async (req,res) => {
     if (!patient) throw new ApiError(404, "Patient profile not found. Please register as a patient first.");
 
     const patientid=patient?._id
-        
+     
     const doc_id=req.params.id;
     const doctor=await Doctor.findByIdAndUpdate(
         doc_id,
