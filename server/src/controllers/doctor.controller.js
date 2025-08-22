@@ -61,6 +61,7 @@ const doctorRegister = asyncHandler(async (req, res) => {
 const doctorLogin = asyncHandler(async (req, res) => {
     const { DoctorKey } = req.body
     const userId = req.user?._id
+    if(!user) throw new ApiError(404,"user not found")
 
     if (!DoctorKey) throw new ApiError(401, "Doctor key required for login")
 
@@ -106,7 +107,7 @@ const getalldoctor = asyncHandler(async (req, res) => {
 
 })
 
-//getsingledoctorbyid(params) or user id
+//getsingledoctorbyid(params) 
 const getdoctorbyid = asyncHandler(async (req, res) => {
     const id = req.params.id;
 

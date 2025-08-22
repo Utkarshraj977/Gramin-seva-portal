@@ -14,7 +14,7 @@ const travellingAdminSchema = new Schema(
             type:String,
             required: true,
         },
-        category:{   
+        category:{   //bolero ,scorpio,bus etc
             type:String,
             required: true,
         },
@@ -25,7 +25,7 @@ const travellingAdminSchema = new Schema(
         },
         AllTraveller:[
             {
-                type: Schema.Types.ObjectId,
+                type: Schema.Types.Mixed,
                 ref: "TravellingUser"
             }
         ],
@@ -35,7 +35,8 @@ const travellingAdminSchema = new Schema(
         },
         TravellingAdminKey:{
             type:String,
-            required:true
+            required:true,
+            select:false
         },
          location:{
             type:String,
@@ -50,5 +51,16 @@ const travellingAdminSchema = new Schema(
         timestamps:true
     }
 )
+
+travellingAdminSchema.pre("save",async function(next){
+    if(!this.isDirectModified("TravellingAdminKey")) return next();
+
+    this.TravellingAdminKey=await bcrypt.hash(this.TravellingAdminKey,10)
+    next();
+})
+
+travellingAdminSchema.methods.isTravellerKeyCorrect=async function(TravellingAdminKey){
+    return await bcrypt.compare(TravellingAdminKey,this.TravellingAdminKey)
+}
 
 export const TravellingAdmin = mongoose.model("TravellingAdmin", travellingAdminSchema)
