@@ -79,8 +79,13 @@ const selectPatient = asyncHandler(async (req, res) => {
     const patient = await Patient.findOne({ userInfo: user }).populate("userInfo", "username fullname coverImage email phone avatar")
     if (!patient) throw new ApiError(404, "Patient profile not found. Please register as a patient first.");
 
-    const doc_id = req.params.id;
-    const doctor = await Doctor.findByIdAndUpdate(
+    const patientid=patient?._id
+     
+   // console.log(patient);
+   // const patientid=patient?._id
+        
+    const doc_id=req.params.id;
+    const doctor=await Doctor.findByIdAndUpdate(
         doc_id,
         { $addToSet: { patient: patient } },
         { new: true }

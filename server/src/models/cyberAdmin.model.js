@@ -2,10 +2,12 @@ import mongoose, {Schema} from "mongoose";
 
 const cyberSchema = new Schema(
     {
-        cyber_shopPic:{
-            type:String,
-            required: true,
+
+        cyber_shopPic: {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true }
         },
+        
         Experience:{
             type:String,
             required: true,
@@ -15,6 +17,7 @@ const cyberSchema = new Schema(
             type:String,
             required: false,
         },
+        
         End_time:{
             type:String,
             required: false,
@@ -23,14 +26,15 @@ const cyberSchema = new Schema(
             type:Boolean,
             required: true,
         },
-        cyberUser:[
-            {
-                type: Schema.Types.ObjectId,
-                ref: "CyberUser"
-            }
+        cyberUsers: [
+        {
+            type: Schema.Types.Mixed,
+            ref: "User"  
+        }
         ],
+
         userInfo:{
-            type: Schema.Types.ObjectId,
+            type: Schema.Types.Mixed,
             ref: "User"
         },
         cyberKey:{
@@ -39,12 +43,12 @@ const cyberSchema = new Schema(
         },
         location:{
             type:String,
-            required:false
+            required:true
         }
-
     },
+
     {
-        timestamps: true
+        timestamps: true 
     }
 )
 

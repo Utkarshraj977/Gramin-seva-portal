@@ -9,7 +9,6 @@ const educationSchema = new Schema(
         public_id: { type: String, required: true }
         },
 
-        
         fee:{
             type:String,
             required: true,
@@ -36,11 +35,11 @@ const educationSchema = new Schema(
             type:Boolean,
             required: true,
         },
-        student:[
-            {
-                type: Schema.Types.ObjectId,
-                ref: "Student"
-            }
+        student: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }
         ],
 
         userInfo: {

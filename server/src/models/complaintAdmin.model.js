@@ -4,8 +4,8 @@ import mongoose, {Schema} from "mongoose";
 const complaintAdminSchema = new Schema(
     {
         complaintAdmin_certificate:{
-            type:String,
-            required: true,
+            url: { type: String, required: true },
+        public_id: { type: String, required: true }
         },
         category:{   //kon sa vibhag ka hai
             type:String,
@@ -25,12 +25,12 @@ const complaintAdminSchema = new Schema(
         },
         Allcomplainer:[
             {
-                type: Schema.Types.ObjectId,
+                type: Schema.Types.Mixed,
                 ref: "ComplaintUser"
             }
         ],
         userInfo:{
-            type: Schema.Types.ObjectId,
+            type: Schema.Types.Mixed,
             ref: "User"
         },
         ComplaintAdminKey:{
