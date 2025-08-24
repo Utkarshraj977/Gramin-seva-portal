@@ -9,7 +9,6 @@ const educationSchema = new Schema(
         public_id: { type: String, required: true }
         },
 
-        
         fee:{
             type:String,
             required: true,
@@ -42,7 +41,6 @@ const educationSchema = new Schema(
             ref: "User"
         }
         ],
-
 
         userInfo: {
         type: Schema.Types.Mixed,

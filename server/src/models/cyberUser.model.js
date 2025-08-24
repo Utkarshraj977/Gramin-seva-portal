@@ -3,7 +3,7 @@ import mongoose, {Schema} from "mongoose";
 const cyberUserSchema = new Schema(
     {
 
-        massage:{
+        message:{
             type:String,
             required: true,
         },
@@ -22,7 +22,7 @@ const cyberUserSchema = new Schema(
         },
  
         userInfo:{
-            type: Schema.Types.ObjectId,
+            type: Schema.Types.Mixed,
             ref: "User"
         },
         cyberUserKey:{
