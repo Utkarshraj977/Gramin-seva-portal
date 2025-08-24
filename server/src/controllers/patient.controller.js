@@ -14,10 +14,12 @@ const PatientRegister = asyncHandler(async (req, res) => {
     const user = req.user?._id;
 
     if (!user) throw new ApiError(404, "User not found")
+    if (!/^\d{6}$/.test(PatientKey)) {
+        throw new ApiError(400, "PatientKey must be exactly 6 digits (numbers only)");
+    }
+    const existeduser = await Patient.findOne({ userInfo: user })
+    if (existeduser) throw new ApiError(409, "patient is allready registered")
 
-    const existeduser=await Patient.findOne({userInfo:user})    
-    if(existeduser) throw new ApiError(409,"patient is allready registered")
-        
     const createdPatient = await Patient.create(
         {
             Age,
@@ -29,31 +31,31 @@ const PatientRegister = asyncHandler(async (req, res) => {
             userInfo: user
         }
     )
-    const fullPatient=await createdPatient.populate("userInfo", "username fullname coverImage email phone avatar");
+    const fullPatient = await createdPatient.populate("userInfo", "username fullname coverImage email phone avatar");
 
     return res
-            .status(200)
-            .json(
-                new ApiResponse(
-                    200,
-                    {Patient:fullPatient},
-                    "Patient registered succesfully"
-                )
-            );
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { Patient: fullPatient },
+                "Patient registered succesfully"
+            )
+        );
 })
 
 //patient Login
-const PatientLogin=asyncHandler(async(req,res)=>{
-    const {Patientkey}  =req.body;
-    const user=req.user?._id;
-    if(!user) throw new ApiError(404,"User not found")
-    if (!Patientkey) throw new ApiError(401, "patient key required for login") 
+const PatientLogin = asyncHandler(async (req, res) => {
+    const { Patientkey } = req.body;
+    const user = req.user?._id;
+    if (!user) throw new ApiError(404, "User not found")
+    if (!Patientkey) throw new ApiError(401, "patient key required for login")
     const patient = await Patient.findOne({ userInfo: user })
-    .populate("userInfo", "username fullname coverImage email phone avatar");
+        .populate("userInfo", "username fullname coverImage email phone avatar");
 
-    if(!patient) throw new ApiError(401,"unauthorized access")
-    
-    const ispatientkeyvalid=await patient.ispatientkeyvalid(Patientkey)    
+    if (!patient) throw new ApiError(401, "unauthorized access")
+
+    const ispatientkeyvalid = await patient.ispatientkeyvalid(Patientkey)
     if (!ispatientkeyvalid) throw new ApiError(401, "Invalid patient credentials")
     patient.PatientKey = undefined; //remove to send the key in the response
 
@@ -66,37 +68,37 @@ const PatientLogin=asyncHandler(async(req,res)=>{
                 "patient login successful"
             )
         )
-        
+
 })
 
 //selectedpatient
-const selectPatient=asyncHandler(async (req,res) => {
-    const user=req.user?._id;
-    if(!user) throw new ApiError(404,"user not found")
+const selectPatient = asyncHandler(async (req, res) => {
+    const user = req.user?._id;
+    if (!user) throw new ApiError(404, "user not found")
 
-    const patient=await Patient.findOne({userInfo:user}).populate("userInfo","username fullname coverImage email phone avatar")
+    const patient = await Patient.findOne({ userInfo: user }).populate("userInfo", "username fullname coverImage email phone avatar")
     if (!patient) throw new ApiError(404, "Patient profile not found. Please register as a patient first.");
-    console.log(patient);
-   // const patientid=patient?._id
-        
-    const doc_id=req.params.id;
-    const doctor=await Doctor.findByIdAndUpdate(
+
+    const doc_id = req.params.id;
+    const doctor = await Doctor.findByIdAndUpdate(
         doc_id,
-        {$addToSet:{patient:patient}},
-        {new:true}
+        { $addToSet: { patient: patient } },
+        { new: true }
     )
-    if(!doctor) throw new ApiError(404,"Doctor not exist");
+    .select("-DoctorKey")  // hide doctorKey
+    .populate("userInfo", "username fullname coverImage email phone avatar")  
+    if (!doctor) throw new ApiError(404, "Doctor not exist");
 
     return res
-           .status(200)
-           .json(
-             new ApiResponse(
+        .status(200)
+        .json(
+            new ApiResponse(
                 200,
                 doctor,
                 "patient is added in doctor"
-             )
-           )
+            )
+        )
 })
 
-export {PatientLogin,PatientRegister,selectPatient}
+export { PatientLogin, PatientRegister, selectPatient }
 

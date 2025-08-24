@@ -69,4 +69,5 @@ const loginStudent = asyncHandler(async (req, res) => {
      ));
 })
 
+
 export {createDetail,loginStudent}

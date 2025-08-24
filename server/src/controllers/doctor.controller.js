@@ -61,7 +61,7 @@ const doctorRegister = asyncHandler(async (req, res) => {
 const doctorLogin = asyncHandler(async (req, res) => {
     const { DoctorKey } = req.body
     const userId = req.user?._id
-    if(!user) throw new ApiError(404,"user not found")
+    if (!user) throw new ApiError(404, "user not found")
 
     if (!DoctorKey) throw new ApiError(401, "Doctor key required for login")
 
@@ -100,7 +100,7 @@ const getalldoctor = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                { Alldoctor }
+                 Alldoctor 
                 , "All Doctor fetched succesfully"
             )
         )
@@ -131,21 +131,23 @@ const getdoctorbyid = asyncHandler(async (req, res) => {
 const deleteServePatient = asyncHandler(async (req, res) => {
     const { patientid } = req.params
     const user = req.user._id
-   if (!patientid) throw new ApiError(400, "Patient ID is required");
+    if (!patientid) throw new ApiError(400, "Patient ID is required");
+    if (!user) throw new ApiError(400, "user id not found")
 
-    
+
     const doctor = await Doctor.findOneAndUpdate(
-        { userInfo: user,
-          patient: new mongoose.Types.ObjectId(patientid) // check karega ki patient array me hai ya nahi
+        {
+            userInfo: user,
+            "patient._id": patientid // check karega ki patient array me hai ya nahi
         },
-        { $pull: { patient: new mongoose.Types.ObjectId(patientid) } },
+        { $pull: { patient:{_id:patientid}} },  //delete full object of the patient
         { new: true }
     ).populate(
         "userInfo",
         "username fullname coverImage email phone avatar"
     );
 
-    if (!doctor) throw new ApiError(404, "doctor or patient not found")
+if (!doctor) throw new ApiError(404, "Doctor not found or patient not associated");
 
     return res
         .status(200)
@@ -178,7 +180,7 @@ const alldoctorbycatog = asyncHandler(async (req, res) => {
         {
             $unwind: "$userdetails" // convert array -> object
         },
-         {
+        {
             $project: {
                 "userdetails.password": 0,
                 "userdetails.refreshToken": 0,
@@ -247,6 +249,6 @@ const alldoctorbytype = asyncHandler(async (req, res) => {
 })
 
 
-export { doctorLogin, doctorRegister,getalldoctor,alldoctorbytype,alldoctorbycatog,deleteServePatient,getdoctorbyid, }
+export { doctorLogin, doctorRegister, getalldoctor, alldoctorbytype, alldoctorbycatog, deleteServePatient, getdoctorbyid, }
 
 

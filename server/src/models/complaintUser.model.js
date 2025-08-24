@@ -1,5 +1,5 @@
 import mongoose, {Schema} from "mongoose";
-
+import bcrypt from "bcrypt";
 
 const complaintUserSchema = new Schema(
     {
@@ -22,14 +22,21 @@ const complaintUserSchema = new Schema(
         ComplaintUserKey:{
             type:String,
             required:true
-        },
-         location:{
-            type:String,
-            required:false
         }
     },{
         timestamps:true
     }
 )
+
+complaintUserSchema.pre("save", async function (next) {
+    if(!this.isModified("ComplaintUserKey")) return next();
+
+    this.ComplaintUserKey= await bcrypt.hash(this.ComplaintUserKey, 10)
+    next();
+})
+
+complaintUserSchema.methods.isKeyCorrect = async function(ComplaintUserKey){
+    return await bcrypt.compare(ComplaintUserKey, this.ComplaintUserKey)
+}
 
 export const ComplaintUser = mongoose.model("ComplaintUser", complaintUserSchema)

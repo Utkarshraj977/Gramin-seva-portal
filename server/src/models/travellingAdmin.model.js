@@ -1,5 +1,5 @@
 import mongoose, {Schema} from "mongoose";
-
+import bcrypt from "bcrypt"
 const travellingAdminSchema = new Schema(
     {
         CarPhoto:{
@@ -36,7 +36,6 @@ const travellingAdminSchema = new Schema(
         TravellingAdminKey:{
             type:String,
             required:true,
-            select:false
         },
          location:{
             type:String,
@@ -53,7 +52,7 @@ const travellingAdminSchema = new Schema(
 )
 
 travellingAdminSchema.pre("save",async function(next){
-    if(!this.isDirectModified("TravellingAdminKey")) return next();
+    if (!this.isModified("TravellingAdminKey")) return next();
 
     this.TravellingAdminKey=await bcrypt.hash(this.TravellingAdminKey,10)
     next();

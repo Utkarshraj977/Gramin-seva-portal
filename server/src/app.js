@@ -21,11 +21,17 @@ import doctorRouter from './routes/doctor.routes.js'
 import patientRouter from './routes/patient.routes.js'
 import educationRouter from './routes/education.routes.js'
 import studentRouter from './routes/student.routes.js'
+import travelleruserRouter from './routes/travelleruser.routes.js'
+import travelleradminRouter from './routes/travelleradmin.routes.js'
+import complaintUserRouter from './routes/complaintuser.routes.js'
 
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/doctor",doctorRouter)
 app.use("/api/v1/patient",patientRouter)
 app.use("/api/v1/education",educationRouter)
 app.use("/api/v1/student",studentRouter)
+app.use("/api/v1/traveller",travelleruserRouter)
+app.use("/api/v1/traveller",travelleradminRouter)
+app.use("/api/v1/complaintuser",complaintUserRouter)
 
 export {app} ;
