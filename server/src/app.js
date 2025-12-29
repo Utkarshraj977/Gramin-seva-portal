@@ -36,4 +36,3 @@ app.use("/api/v1/traveller",travelleradmin)
 app.use("/api/v1/traveller",travelleruser)
 
 export {app} ;
-

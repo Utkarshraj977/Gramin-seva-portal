@@ -101,6 +101,7 @@ const setuserIntoadmin = asyncHandler(async (req, res) => {
 })
 
 //get Traveller user by id
+
 const travelleruser = asyncHandler(async (req, res) => {
     const user = req.user?._id;
     if (!user) throw new ApiError(400, "user id not found")

@@ -6,13 +6,13 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Cyber } from "../models/cyberAdmin.model.js"
 
 const resistorCyberUser = asyncHandler(async (req, res) => {
-  const { message, Start_time, End_time, location, cyberUserKey } = req.body;
+    const { message, Start_time, End_time, location, cyberUserKey } = req.body;
 
-  // Validation (safe check for string fields only)
- // Only check for required fields
-  if (!message || message.trim() === "" || !cyberUserKey || cyberUserKey.trim() === "") {
-  throw new ApiError(400, "Message and CyberUserKey must be non-empty");
-}
+    // Validation (safe check for string fields only)
+  // Only check for required fields
+    if (!message || message.trim() === "" || !cyberUserKey || cyberUserKey.trim() === "") {
+    throw new ApiError(400, "Message and CyberUserKey must be non-empty");
+  }
 
   if (!Start_time || !End_time) {
     throw new ApiError(400, "Start_time and End_time are required");

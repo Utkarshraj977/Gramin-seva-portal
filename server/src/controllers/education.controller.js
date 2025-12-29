@@ -151,8 +151,6 @@ const teacherSumbit = asyncHandler(async (req, res) => {
   );
 });
 
-
-
 export {createDetail,loginTeacher,getAllStudent,teacherSumbit}
 
  

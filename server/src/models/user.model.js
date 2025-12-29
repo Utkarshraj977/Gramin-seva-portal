@@ -19,6 +19,13 @@ const userSchema = new Schema(
             lowecase: true,
             trim: true, 
         },
+        emailVerified: {
+        type: Boolean,
+        default: false,
+        },
+
+        emailVerificationOTP: String,
+        emailVerificationExpiry: Date,
 
 
         phone: {
@@ -94,11 +101,11 @@ userSchema.methods.generateAccessToken = function(){
         }
     )
 }
+
 userSchema.methods.generateRefreshToken = function(){
     return jwt.sign(
         {
             _id: this._id,
-            
         },
         process.env.REFRESH_TOKEN_SECRET,
         {
