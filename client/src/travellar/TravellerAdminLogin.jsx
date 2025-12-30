@@ -14,7 +14,7 @@ export default function TravellerAdminLogin() {
       setLoading(true);
       // Ideally, use import.meta.env.VITE_API_URL here
       const res = await fetch(
-        "http://localhost:8000/api/v1/traveller/traveladminregister",
+        "http://localhost:8000/api/v1/traveller/traveladminlogin",
         {
           method: "POST",
           credentials: "include",
