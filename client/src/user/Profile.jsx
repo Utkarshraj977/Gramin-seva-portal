@@ -1,15 +1,30 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom"; 
 import { user as userApi } from "../services/api"; 
-import { User, Mail, Phone, MapPin, X, Camera, Settings, Bell, Shield, ChevronRight, LogOut, Loader2 } from "lucide-react";
+// 🔥 Added Icons for Protection UI
+import { 
+  User, Mail, Phone, MapPin, X, Camera, Settings, Bell, Shield, 
+  ChevronRight, LogOut, Loader2, UserPen, KeyRound, ShieldAlert, LogIn 
+} from "lucide-react";
 import Services from "../components/Sixcomponent/Services";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isProfileOpen, setIsProfileOpen] = useState(false); // Controls the Slide-Over
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [hasSession, setHasSession] = useState(true); // 🔥 Session State
 
   useEffect(() => {
-    loadUser();
+    // 🔥 1. Check Session Logic
+    const storedUser = localStorage.getItem("userData");
+    
+    if (!storedUser) {
+      setHasSession(false);
+      setLoading(false); // Stop loading if no session
+    } else {
+      loadUser();
+    }
   }, []);
 
   const loadUser = async () => {
@@ -23,6 +38,7 @@ export default function Dashboard() {
     }
   };
 
+  // Loading Spinner
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
@@ -31,63 +47,100 @@ export default function Dashboard() {
     );
   }
 
+  // 🔥 2. ACCESS DENIED UI (If No Session)
+  if (!hasSession) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full text-center border border-gray-100 animate-fade-in-up">
+           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 text-red-600 mb-6 animate-bounce">
+              <ShieldAlert size={40} />
+           </div>
+           
+           <h2 className="text-2xl font-bold text-gray-800 mb-3">
+             Access Restricted
+           </h2>
+           
+           <p className="text-gray-500 mb-8 leading-relaxed text-sm">
+             Dashboard access karne ke liye aapko login karna anivarya hai. Kripya pehle apni pehchan verify karein.
+           </p>
+
+           <div className="space-y-3">
+             <button
+                onClick={() => navigate("/login")}
+                className="w-full py-3.5 px-6 rounded-xl bg-emerald-600 text-white font-bold shadow-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 hover:-translate-y-1"
+             >
+                <LogIn size={20} /> Login Now
+             </button>
+             
+             <button
+                onClick={() => navigate("/")}
+                className="w-full py-3.5 px-6 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+             >
+                Go to Home
+             </button>
+           </div>
+        </div>
+        <style>{`
+          .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+          @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  // 🔥 3. MAIN DASHBOARD (If Session Exists)
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans relative">
       
-      {/* --- 1. MAIN CONTENT AREA (IMMEDIATE SERVICES) --- */}
+      {/* --- MAIN CONTENT AREA --- */}
       <div className={`transition-all duration-300 ${isProfileOpen ? 'md:mr-[400px]' : ''}`}>
         
         {/* Welcome Header */}
         <div className="bg-emerald-900 text-white pt-10 pb-20 px-6 md:px-12 relative overflow-hidden">
-           {/* Background Decoration */}
            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
            
            <div className="max-w-7xl mx-auto flex justify-between items-end relative z-10">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                  Namaste, {userData?.fullName?.split(" ")[0] || "User"}! 🙏
-                </h1>
-                <p className="text-emerald-100 opacity-90 max-w-xl">
-                  Welcome to your Gramin Seva Dashboard. Access all government and village services directly from here.
-                </p>
-              </div>
-              
-              {/* Desktop: "My Profile" Button (Visible only if profile is closed) */}
-              {!isProfileOpen && (
-                <button 
-                  onClick={() => setIsProfileOpen(true)}
-                  className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 px-5 py-2.5 rounded-full transition-all group"
-                >
-                  <img 
-                    src={userData?.avatar?.url || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
-                    className="w-8 h-8 rounded-full border border-white/50"
-                  />
-                  <span className="font-medium">My Account</span>
-                  <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
-                </button>
-              )}
+             <div>
+               <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                 Namaste, {userData?.fullName?.split(" ")[0] || "User"}! 🙏
+               </h1>
+               <p className="text-emerald-100 opacity-90 max-w-xl">
+                 Welcome to your Gramin Seva Dashboard. Access all government and village services directly from here.
+               </p>
+             </div>
+             
+             {!isProfileOpen && (
+               <button 
+                 onClick={() => setIsProfileOpen(true)}
+                 className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 px-5 py-2.5 rounded-full transition-all group"
+               >
+                 <img 
+                   src={userData?.avatar?.url || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
+                   className="w-8 h-8 rounded-full border border-white/50"
+                 />
+                 <span className="font-medium">My Account</span>
+                 <Settings size={16} className="group-hover:rotate-90 transition-transform duration-500" />
+               </button>
+             )}
            </div>
         </div>
 
-        {/* Services Grid (Pushed up to overlap header) */}
+        {/* Services Grid */}
         <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-10 pb-12 relative z-20">
-           {/* Mobile Profile Trigger (Floating Action Button) */}
            <button 
-              onClick={() => setIsProfileOpen(true)}
-              className="md:hidden absolute top-[-60px] right-6 p-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition"
+             onClick={() => setIsProfileOpen(true)}
+             className="md:hidden absolute top-[-60px] right-6 p-3 bg-amber-500 text-white rounded-full shadow-lg hover:bg-amber-600 transition"
            >
-              <Settings size={24} />
+             <Settings size={24} />
            </button>
 
-           {/* YOUR SERVICES COMPONENT */}
            <div className="animate-fade-in-up">
               <Services />
            </div>
         </div>
       </div>
 
-      {/* --- 2. SLIDE-OVER PROFILE DRAWER --- */}
-      {/* Overlay (Mobile only) */}
+      {/* --- SLIDE-OVER PROFILE DRAWER --- */}
       {isProfileOpen && (
         <div 
           onClick={() => setIsProfileOpen(false)}
@@ -95,7 +148,6 @@ export default function Dashboard() {
         ></div>
       )}
 
-      {/* The Sidebar Itself */}
       <div className={`fixed top-0 right-0 h-full w-full md:w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${isProfileOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         
         {/* Profile Header */}
@@ -111,41 +163,58 @@ export default function Dashboard() {
         {/* Profile Content */}
         <div className="px-6 pb-8">
            
-           {/* Avatar Section (Update Logic Included) */}
            <AvatarUpdater 
-              userData={userData} 
-              onUpdate={() => loadUser()} 
+             userData={userData} 
+             onUpdate={() => loadUser()} 
            />
 
            <div className="text-center mt-3 mb-8">
-              <h2 className="text-2xl font-bold text-gray-800">{userData?.fullName}</h2>
-              <p className="text-emerald-600 font-medium">@{userData?.username}</p>
-              <div className="flex justify-center gap-2 mt-3">
-                 <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-200">Verified User</span>
-                 <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200">Villager</span>
-              </div>
+             <h2 className="text-2xl font-bold text-gray-800">{userData?.fullName}</h2>
+             <p className="text-emerald-600 font-medium mb-4">@{userData?.username}</p>
+             
+             {/* Action Buttons */}
+             <div className="flex justify-center gap-3">
+                 <button 
+                   onClick={() => navigate("/updateAccount")}
+                   className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-all active:scale-95"
+                 >
+                    <UserPen size={14} />
+                    Update Account
+                 </button>
+
+                 <button 
+                   onClick={() => navigate("/changePassword")}
+                   className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition-all active:scale-95"
+                 >
+                    <KeyRound size={14} />
+                    Change Pass
+                 </button>
+             </div>
            </div>
 
-           {/* Details Section */}
            <div className="space-y-6">
-              
-              {/* Contact Info */}
-              <div>
+             
+             {/* Contact Info */}
+             <div>
                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Contact Information</h3>
                  <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100">
                     <InfoRow icon={Mail} label="Email" value={userData?.email} />
                     <InfoRow icon={Phone} label="Phone" value={userData?.phone || "Not Added"} />
                     <InfoRow icon={MapPin} label="Location" value="Gram Panchayat, Bihar" />
                  </div>
-              </div>
+             </div>
 
-              {/* Account Settings */}
-              <div>
+             {/* Account Settings */}
+             <div>
                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Settings & Privacy</h3>
                  <div className="border border-gray-100 rounded-2xl divide-y divide-gray-100">
                     <SettingRow icon={Bell} title="Notifications" desc="SMS & Email alerts" />
                     <SettingRow icon={Shield} title="Privacy" desc="Hide profile photo" />
-                    <button className="w-full flex items-center justify-between p-4 hover:bg-red-50 text-left group transition">
+                    
+                    <button 
+                       onClick={() => navigate("/logout")} 
+                       className="w-full flex items-center justify-between p-4 hover:bg-red-50 text-left group transition"
+                    >
                        <div className="flex items-center gap-3">
                           <div className="p-2 bg-red-100 text-red-600 rounded-lg group-hover:bg-red-200">
                              <LogOut size={18} />
@@ -156,8 +225,9 @@ export default function Dashboard() {
                        </div>
                        <ChevronRight size={16} className="text-gray-300 group-hover:text-red-400" />
                     </button>
+
                  </div>
-              </div>
+             </div>
 
            </div>
            
@@ -179,7 +249,7 @@ export default function Dashboard() {
   );
 }
 
-// --- SUB-COMPONENT: AVATAR UPDATER (Handles logic cleanly) ---
+// --- SUB-COMPONENT: AVATAR UPDATER ---
 function AvatarUpdater({ userData, onUpdate }) {
    const [uploading, setUploading] = useState(false);
    const fileInputRef = useRef(null);
@@ -193,7 +263,7 @@ function AvatarUpdater({ userData, onUpdate }) {
          const formData = new FormData();
          formData.append("avatar", file);
          await userApi.update_avatar(formData);
-         await onUpdate(); // Refresh parent data
+         await onUpdate(); 
       } catch (err) {
          alert("Failed to update avatar");
       } finally {

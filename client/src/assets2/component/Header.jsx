@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
 
-export default function Header() {
+export default function UserHeader() {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Desktop Link Styles (Light text for dark background)
+  // Desktop Link Styles (Same as Admin - Light text for dark background)
   const getLinkClass = ({ isActive }) =>
     `text-sm font-medium transition-all duration-200 px-3 py-2 rounded-md ${
       isActive
@@ -21,29 +21,31 @@ export default function Header() {
     }`;
 
   return (
-    // CHANGED: bg-white -> bg-emerald-900 (Dark Forest Green)
+    // THEME: Same Dark Forest Green (bg-emerald-900)
     <header className="bg-emerald-900 shadow-md sticky top-0 z-50 w-full border-b border-emerald-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           
           {/* LOGO */}
           <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
-            {/* Logo Icon Background changed to match theme */}
             <span className="text-2xl bg-emerald-800 p-1.5 rounded-lg shadow-inner">🌿</span>
             <span className="text-xl font-bold text-white tracking-wide">
               Gramin<span className="text-emerald-400">Seva</span>
             </span>
           </div>
 
-          {/* DESKTOP NAV */}
+          {/* DESKTOP NAV - Updated for User Roles */}
           <nav className="hidden md:flex space-x-4 items-center">
-            <NavLink to="/home/admin" end className={getLinkClass}>Home</NavLink>
-            <NavLink to="/services/admin" className={getLinkClass}>Services</NavLink>
-            <NavLink to="/doctor/admin" className={getLinkClass}>Doctor</NavLink>
-            <NavLink to="/education/admin" className={getLinkClass}>Education</NavLink>
-            <NavLink to="/complaint/admin" className={getLinkClass}>Complaint</NavLink>
-            <NavLink to="/cyber/admin" className={getLinkClass}>Cyber</NavLink>
-            <NavLink to="/traveller/admin" className={getLinkClass}>Traveller</NavLink>
+            <NavLink to="/home/user" end className={getLinkClass}>Home</NavLink>
+            <NavLink to="/services/user" className={getLinkClass}>Services</NavLink>
+            
+            {/* CHANGED LINKS */}
+            <NavLink to="/doctor/user" className={getLinkClass}>Patient</NavLink>
+            <NavLink to="/education/user" className={getLinkClass}>Student</NavLink>
+            <NavLink to="/complaint/user" className={getLinkClass}>Complaint User</NavLink>
+            
+            <NavLink to="/cyber/user" className={getLinkClass}>Cyber User</NavLink>
+            <NavLink to="/traveller/user" className={getLinkClass}>Traveller User</NavLink>
           </nav>
 
           {/* MOBILE TOGGLE (HAMBURGER) */}
@@ -51,7 +53,6 @@ export default function Header() {
             <button
               onClick={() => setIsOpen(!isOpen)}
               type="button"
-              // Button text color changed to white
               className="inline-flex items-center justify-center p-2 rounded-md text-emerald-100 hover:text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-400"
             >
               <span className="sr-only">Open main menu</span>
@@ -69,19 +70,21 @@ export default function Header() {
         </div>
       </div>
 
-      {/* MOBILE MENU */}
+      {/* MOBILE MENU - Updated for User Roles */}
       <div className={`md:hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-screen opacity-100" : "max-h-0 opacity-0 overflow-hidden"}`}>
-        {/* Mobile menu background matches header */}
         <div className="px-2 pt-2 pb-6 space-y-1 sm:px-3 bg-emerald-900 shadow-xl border-t border-emerald-800">
-          <NavLink onClick={() => setIsOpen(false)} to="/home/admin" end className={getMobileLinkClass}>Home</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/services/admin" className={getMobileLinkClass}>Services</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/doctor/admin" className={getMobileLinkClass}>Doctor</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/education/admin" className={getMobileLinkClass}>Education</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/complaint/admin" className={getMobileLinkClass}>Complaint</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/cyber/admin" className={getMobileLinkClass}>Cyber</NavLink>
-          <NavLink onClick={() => setIsOpen(false)} to="/traveller/admin" className={getMobileLinkClass}>Traveller</NavLink>
+          <NavLink onClick={() => setIsOpen(false)} to="/home/user" end className={getMobileLinkClass}>Home</NavLink>
+          <NavLink onClick={() => setIsOpen(false)} to="/services/user" className={getMobileLinkClass}>Services</NavLink>
           
-          <div className="border-t border-emerald-800 my-2 pt-2">
+          {/* CHANGED LINKS IN MOBILE MENU */}
+          <NavLink onClick={() => setIsOpen(false)} to="/doctor/user" className={getMobileLinkClass}>Patient</NavLink>
+          <NavLink onClick={() => setIsOpen(false)} to="/education/user" className={getMobileLinkClass}>Student</NavLink>
+          <NavLink onClick={() => setIsOpen(false)} to="/complaint/user" className={getMobileLinkClass}>Complaint User</NavLink>
+          
+          <NavLink onClick={() => setIsOpen(false)} to="/cyber/user" className={getMobileLinkClass}>Cyber User</NavLink>
+          <NavLink onClick={() => setIsOpen(false)} to="/traveller/user" className={getMobileLinkClass}>Traveller User</NavLink>
+          
+          {/* <div className="border-t border-emerald-800 my-2 pt-2">
             <NavLink onClick={() => setIsOpen(false)} to="/profile" className={getMobileLinkClass}>Profile</NavLink>
             <NavLink 
               onClick={() => setIsOpen(false)} 
@@ -90,7 +93,7 @@ export default function Header() {
             >
               Login
             </NavLink>
-          </div>
+          </div> */}
         </div>
       </div>
     </header>

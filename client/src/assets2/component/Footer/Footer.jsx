@@ -2,7 +2,7 @@ import React from "react";
 // Ensure FontAwesome is imported in your index.html or index.js
 import "@fortawesome/fontawesome-free/css/all.min.css";
 
-export const Footer = () => {
+export const UserFooter = () => {
   return (
     <footer className="bg-gray-900 text-gray-300 py-16 font-sans">
       <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-12">
@@ -18,18 +18,18 @@ export const Footer = () => {
             <b className="text-emerald-400"> nagrik seva</b> ek jagah uplabdh hai.
           </p>
         </div>
-        
+
         {/* 2. QUICK LINKS */}
         <div>
           <h4 className="text-lg font-semibold text-white mb-6 border-b-2 border-emerald-600 inline-block pb-1">Quick Links</h4>
           <ul className="space-y-3 text-sm">
             <li><a href="/home/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Home</a></li>
-            <li><a href="/services/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">All Services</a></li>
-            <li><a href="/doctor/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Doctor Seva</a></li>
-            <li><a href="/education/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Education</a></li>
-            <li><a href="/complaint/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Complaints</a></li>
-            <li><a href="/cyber/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Cyber Safety</a></li>
-            <li><a href="/traveller/admin" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Traveller Help</a></li>
+            <li><a href="/services/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">All Services</a></li>
+            <li><a href="/doctor/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Doctor Seva</a></li>
+            <li><a href="/education/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Education</a></li>
+            <li><a href="/complaint/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Complaints</a></li>
+            <li><a href="/cyber/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Cyber User</a></li>
+            <li><a href="/travelle/user" className="hover:text-emerald-400 hover:translate-x-1 transition-all inline-block">Traveller Help</a></li>
           </ul>
         </div>
 

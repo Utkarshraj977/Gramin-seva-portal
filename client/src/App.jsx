@@ -20,6 +20,16 @@ import TravellerAdminRegister from "./travellar/TravellerAdminRegister";
 import TravellerAdminLogin from "./travellar/TravellerAdminLogin";
 
 import AppLayoutt from "./assets1/component/AppLayout1";
+import About from "./user/About";
+import Servicess from "./user/Servicehome";
+import Contact from "./user/Contact";
+import AppLayouttt from "./assets2/component/AppLayout";
+import PatientUser from "./doctor/PatientUser";
+import StudentUser from "./edcutaion/StudentUser";
+import TravellerUser from "./travellar/TravellerUser";
+import CyberUser from "./cyber/CyberUser";
+import ComplaintUser from "./complaint/ComplaintUser";
+import ServicesUser from "./service/ServicesUser";
 
 
 // Router configuration
@@ -33,11 +43,14 @@ const router = createBrowserRouter([
     errorElement: <Errorpage />,
     children: [{ index : true , element: <LandingPage /> },
       { path: "login", element: <Login />,},
-      { path: "register",element: <Register />, }, { path: "logout", element: <Logout />,},
-      { path: "dashboard", element: <Logout />, },
+      { path: "register",element: <Register />, },
+      { path: "logout", element: <Logout />,},
       { path: "changePassword", element: <ChangePassword />,},
       { path: "updateAccount", element: <UpdateAccount />, },
       { path: "profile", element: <Profile />,},
+      { path: "about", element: <About />,},
+      { path: "service", element: <Servicess />,},
+      { path: "contact", element: <Contact />,},
     ],
   },
   {
@@ -45,7 +58,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <TravellerAdmin /> },
       { path: "admin", element: <TravellerAdmin />,},
       { path: "register", element: <TravellerAdminRegister />,},
       { path: "login", element: <TravellerAdminLogin />,},
@@ -57,7 +69,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <CyberAdmin /> },
       { path: "admin", element: <CyberAdmin />,},
       
     ], 
@@ -67,7 +78,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <EducationAdmin /> },
       { path: "admin", element: <EducationAdmin />,},
       
     ], 
@@ -77,7 +87,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <DoctorAdmin /> },
       { path: "admin", element: <DoctorAdmin />,},
       
     ], 
@@ -87,7 +96,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <ComplaintAdmin /> },
       { path: "admin", element: <ComplaintAdmin />,},
     ], 
   },
@@ -96,7 +104,6 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <Services /> },
       { path: "admin", element: <Services />,},
       
     ], 
@@ -106,11 +113,101 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     errorElement: <Errorpage />,
     children: [
-      { index : true ,  element: <Home /> },
       { path: "admin", element: <Home />,},
       
     ], 
   },
+
+
+
+
+
+
+
+
+
+
+  {
+    path: "/traveller",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <TravellerAdmin /> },
+      { path: "user", element: <TravellerUser />,},
+      { path: "register", element: <TravellerAdminRegister />,},
+      { path: "login", element: <TravellerAdminLogin />,},
+      
+    ], 
+  },
+  {
+    path: "/cyber",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <CyberAdmin /> },
+      { path: "user", element: <CyberUser />,},
+      
+    ], 
+  },
+  {
+    path: "/education",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <EducationAdmin /> },
+      { path: "user", element: <StudentUser />,},
+      
+    ], 
+  },
+  {
+    path: "/doctor",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <DoctorAdmin /> },
+      { path: "user", element: <PatientUser />,},
+      
+    ], 
+  },
+  {
+    path: "/complaint",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <ComplaintAdmin /> },
+      { path: "user", element: <ComplaintUser />,},
+    ], 
+  },
+  {
+    path: "/services",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <Services /> },
+      { path: "user", element: <ServicesUser />,},
+      
+    ], 
+  },
+  {
+    path: "/home",
+    element: <AppLayouttt />,
+    errorElement: <Errorpage />,
+    children: [
+      { index : true ,  element: <Home /> },
+      { path: "user", element: <Home />,},
+      
+    ], 
+  },
+
+
+
+
+
+
+
+
+
+
   
 ]);
 
