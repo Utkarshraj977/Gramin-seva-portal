@@ -61,7 +61,7 @@ const doctorRegister = asyncHandler(async (req, res) => {
 const doctorLogin = asyncHandler(async (req, res) => {
     const { DoctorKey } = req.body
     const userId = req.user?._id
-    if (!user) throw new ApiError(404, "user not found")
+    if (!userId) throw new ApiError(404, "user not found")
 
     if (!DoctorKey) throw new ApiError(401, "Doctor key required for login")
 
@@ -248,7 +248,27 @@ const alldoctorbytype = asyncHandler(async (req, res) => {
         )
 })
 
+const getCurrentDoctor = asyncHandler(async (req, res) => {
+    const user = req.user._id;
+    
+    const doctor = await Doctor.findOne({ userInfo: user })
+        // 1. Populate the DOCTOR'S own info (Name, Avatar, etc.)
+        .populate("userInfo", "fullName username email avatar") 
+        
+        // 2. Populate the PATIENTS list
+        .populate({
+            path: "patient", 
+            populate: {
+                path: "userInfo", 
+                select: "username fullName email avatar phone" 
+            }
+        });
 
-export { doctorLogin, doctorRegister, getalldoctor, alldoctorbytype, alldoctorbycatog, deleteServePatient, getdoctorbyid, }
+    if (!doctor) throw new ApiError(404, "Doctor profile not found");
+
+    return res.status(200).json(new ApiResponse(200, doctor, "Doctor profile fetched"));
+});
+
+export { doctorLogin, doctorRegister, getalldoctor,getCurrentDoctor,alldoctorbytype, alldoctorbycatog, deleteServePatient, getdoctorbyid, }
 
 

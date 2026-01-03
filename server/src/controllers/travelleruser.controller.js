@@ -120,3 +120,5 @@ const travelleruser = asyncHandler(async (req, res) => {
 })
 
 export { TravellingUserRegister, TravellingLogin, setuserIntoadmin, travelleruser }
+
+
