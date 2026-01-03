@@ -2,6 +2,7 @@
   "dependencies": {
     "dotenv": "^17.2.1",
     "framer-motion": "^12.23.26",
-    "lucide-react": "^0.562.0"
+    "lucide-react": "^0.562.0",
+    "react-hot-toast": "^2.6.0"
   }
 }

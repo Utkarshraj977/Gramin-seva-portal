@@ -19,7 +19,6 @@ export default function EducationAdmin() {
     }, 3500); // Slightly slower change for reading comfort
     return () => clearInterval(intervalId);
   }, []);
-
   return (
     <div className="bg-[#f8fafc] min-h-screen font-sans text-slate-800">
       

@@ -30,6 +30,10 @@ import TravellerUser from "./travellar/TravellerUser";
 import CyberUser from "./cyber/CyberUser";
 import ComplaintUser from "./complaint/ComplaintUser";
 import ServicesUser from "./service/ServicesUser";
+import TravelUserRegister from "./travellar/TravelUserRegister";
+import TravelUserLogin from "./travellar/TravelUserLogin";
+import TravelUserDashboard from "./travellar/TravelUserDashboard";
+import TravellerAdminDashboard from "./travellar/TravellerAdminDashboard";
 
 
 // Router configuration
@@ -53,6 +57,9 @@ const router = createBrowserRouter([
       { path: "contact", element: <Contact />,},
     ],
   },
+
+
+  
   {
     path: "/traveller",
     element: <AppLayout />,
@@ -61,6 +68,7 @@ const router = createBrowserRouter([
       { path: "admin", element: <TravellerAdmin />,},
       { path: "register", element: <TravellerAdminRegister />,},
       { path: "login", element: <TravellerAdminLogin />,},
+      { path: "dashboard", element: <TravellerAdminDashboard />,},
       
     ], 
   },
@@ -134,8 +142,9 @@ const router = createBrowserRouter([
     children: [
       { index : true ,  element: <TravellerAdmin /> },
       { path: "user", element: <TravellerUser />,},
-      { path: "register", element: <TravellerAdminRegister />,},
-      { path: "login", element: <TravellerAdminLogin />,},
+      { path: "user/register", element: <TravelUserRegister />,},
+      { path: "user/login", element: <TravelUserLogin />,},
+      { path: "user/dashboard", element: <TravelUserDashboard />,},
       
     ], 
   },

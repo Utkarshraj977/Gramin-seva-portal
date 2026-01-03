@@ -116,14 +116,40 @@ const allTravellerAdmin = asyncHandler(async (req, res) => {
 })
 
 //Get TravellerAdmin By id
+// const gettravelleradmin = asyncHandler(async (req, res) => {
+//     const user = req.user._id;
+//     if (!user) throw new ApiError(404, "User not found")
+
+//     const admin = await TravellingAdmin.findOne({ userInfo: user })
+//         .populate("userInfo", "username fullname coverImage email phone avatar");
+
+//     if (!admin) throw new ApiError(404, "Traveller Admin not found")
+
+//     return res
+//         .status(200)
+//         .json(
+//             new ApiResponse(
+//                 200,
+//                 { admin },
+//                 "Traveller data is fetched"
+//             )
+//         )
+// })
 const gettravelleradmin = asyncHandler(async (req, res) => {
     const user = req.user._id;
-    if (!user) throw new ApiError(404, "User not found")
+    if (!user) throw new ApiError(404, "User not found");
 
     const admin = await TravellingAdmin.findOne({ userInfo: user })
-        .populate("userInfo", "username fullname coverImage email phone avatar");
+ 
+        .populate("userInfo", "username fullname fullName coverImage email phone avatar")
+ 
+        .populate({
+            path: "AllTraveller.userInfo",
+            model: "User",
+            select: "username fullname fullName email phone avatar coverImage" 
+        });
 
-    if (!admin) throw new ApiError(404, "Traveller Admin not found")
+    if (!admin) throw new ApiError(404, "Traveller Admin not found");
 
     return res
         .status(200)
@@ -131,11 +157,10 @@ const gettravelleradmin = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 { admin },
-                "Traveller data is fetched"
+                "Traveller data fetched with full passenger details"
             )
-        )
-})
-
+        );
+});
 //Get TravellerAdmin by Params Id or params username
 const getTravellerAdminByParams = asyncHandler(async (req, res) => {
     const { param } = req.params

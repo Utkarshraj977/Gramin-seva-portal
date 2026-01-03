@@ -428,5 +428,24 @@ const getCurrentUser = asyncHandler(async(req, res) => {
         "User fetched successfully"
     ))
 })
+const getUserByID = asyncHandler(async (req, res) => {
+    const { userId } = req.params
 
-export {registerUser,loginUser,logoutUser,changeCurrentPassword,updateAccountDetails,updateUserAvatar,updateUserCoverImage,getCurrentUser}
+    if (!userId) {
+        throw new ApiError(400, "User ID is required")
+    }
+
+    const user = await User.findById(userId)
+        .select("-password -refreshToken")
+
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "User fetched successfully")
+    )
+})
+
+
+export {registerUser,loginUser,logoutUser,changeCurrentPassword,updateAccountDetails,updateUserAvatar,updateUserCoverImage,getCurrentUser,getUserByID}

@@ -39,7 +39,7 @@ export default function TravellerAdminLogin() {
       // Store token or user data if needed here
       // localStorage.setItem("travellerAdmin", JSON.stringify(data.data));
       
-      navigate("/dashboard");
+      navigate("/traveller/dashboard");
     } catch (err) {
       alert("Server error");
     } finally {
