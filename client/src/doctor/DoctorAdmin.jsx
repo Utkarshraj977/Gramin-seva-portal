@@ -181,14 +181,14 @@ export default function DoctorAdmin() {
                  
                  <div className="space-y-4">
                     <Link
-                      to="/login"
+                      to="/doctor/login"
                       className="block w-full py-4 px-6 bg-teal-600 text-white rounded-xl font-bold shadow-lg shadow-teal-200 hover:bg-teal-700 hover:-translate-y-1 transition-all duration-200"
                     >
                       Login Dashboard
                     </Link>
 
                     <Link
-                      to="/register"
+                      to="/doctor/register"
                       className="block w-full py-4 px-6 bg-white text-teal-700 border-2 border-teal-100 rounded-xl font-bold hover:bg-teal-50 hover:border-teal-200 transition-all duration-200"
                     >
                       New Registration

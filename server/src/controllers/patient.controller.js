@@ -74,25 +74,27 @@ const PatientLogin = asyncHandler(async (req, res) => {
 //selectedpatient
 const selectPatient = asyncHandler(async (req, res) => {
     const user = req.user?._id;
-    if (!user) throw new ApiError(404, "user not found")
+    if (!user) throw new ApiError(404, "User not found");
 
-    const patient = await Patient.findOne({ userInfo: user }).populate("userInfo", "username fullname coverImage email phone avatar")
+    // 1. Get the Patient Profile of the logged-in user
+    const patient = await Patient.findOne({ userInfo: user });
     if (!patient) throw new ApiError(404, "Patient profile not found. Please register as a patient first.");
 
-    const patientid=patient?._id
-     
-   // console.log(patient);
-   // const patientid=patient?._id
-        
-    const doc_id=req.params.id;
-    const doctor=await Doctor.findByIdAndUpdate(
+    // 2. Get the Doctor ID from the URL (route: /select-patient/:id)
+    const doc_id = req.params.id; // <--- THIS WAS MISSING
+    
+    if (!doc_id) throw new ApiError(400, "Doctor ID is required");
+
+    // 3. Update the Doctor: Add patient's ID to the doctor's 'patient' array
+    const doctor = await Doctor.findByIdAndUpdate(
         doc_id,
-        { $addToSet: { patient: patient } },
+        { $addToSet: { patient: patient._id } }, // Push only the ID
         { new: true }
     )
-    .select("-DoctorKey")  // hide doctorKey
-    .populate("userInfo", "username fullname coverImage email phone avatar")  
-    if (!doctor) throw new ApiError(404, "Doctor not exist");
+    .select("-DoctorKey") // Security: hide key
+    .populate("userInfo", "username fullname coverImage email phone avatar");
+
+    if (!doctor) throw new ApiError(404, "Doctor does not exist");
 
     return res
         .status(200)
@@ -100,10 +102,37 @@ const selectPatient = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 doctor,
-                "patient is added in doctor"
+                "Patient successfully added to Doctor's list"
             )
-        )
-})
+        );
+});
 
-export { PatientLogin, PatientRegister, selectPatient }
+const getCurrentPatient = asyncHandler(async (req, res) => {
+    // 1. Get the User ID from the verifyJWT middleware
+    const userId = req.user?._id;
+
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized request. User not found.");
+    }
+
+    // 2. Find the Patient profile linked to this User
+    const patient = await Patient.findOne({ userInfo: userId })
+        .populate("userInfo", "fullName email avatar phone"); // Fetch user details
+
+    if (!patient) {
+        throw new ApiError(404, "Patient profile not found. Please register as a patient.");
+    }
+
+    // 3. Return the data
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200, 
+                patient, 
+                "Patient profile fetched successfully"
+            )
+        );
+});
+export { PatientLogin, PatientRegister,getCurrentPatient, selectPatient }
 
