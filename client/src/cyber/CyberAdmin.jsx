@@ -158,14 +158,14 @@ export default function CyberAdmin() {
                  
                  <div className="space-y-4">
                     <Link
-                      to="/login"
+                      to="login"
                       className="block w-full py-4 px-6 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-1 transition-all duration-200"
                     >
                       Login Dashboard
                     </Link>
 
                     <Link
-                      to="/register"
+                      to="register"
                       className="block w-full py-4 px-6 bg-white text-emerald-700 border-2 border-emerald-100 rounded-xl font-bold hover:bg-emerald-50 hover:border-emerald-200 transition-all duration-200"
                     >
                       New Registration

@@ -160,14 +160,14 @@ export default function ComplaintUser() {
                  
                  <div className="space-y-4">
                     <Link
-                      to="/login"
+                      to="login"
                       className="block w-full py-4 px-6 bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 hover:bg-red-700 hover:-translate-y-1 transition-all duration-200"
                     >
                       Login karein
                     </Link>
 
                     <Link
-                      to="/register"
+                      to="register"
                       className="block w-full py-4 px-6 bg-white text-red-700 border-2 border-red-100 rounded-xl font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-200"
                     >
                       Nayi Shikayat (Register)

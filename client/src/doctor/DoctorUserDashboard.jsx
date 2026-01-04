@@ -69,7 +69,7 @@ const DoctorUserDashboard = () => {
         setConnectingId(doctorId);
         try {
             await axios.patch(
-                `http://localhost:8000/api/v1/doctors/select-patient/${doctorId}`,
+                `http://localhost:8000/api/v1/patient/selectpatient/${doctorId}`,
                 {}, 
                 { withCredentials: true }
             );

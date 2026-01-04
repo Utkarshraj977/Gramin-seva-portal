@@ -185,14 +185,14 @@ export default function ComplaintAdmin() {
                  
                  <div className="space-y-4">
                     <Link
-                      to="/login"
+                      to="login"
                       className="block w-full py-4 px-6 bg-rose-600 text-white rounded-xl font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:-translate-y-1 transition-all duration-200"
                     >
                       Officer Login
                     </Link>
 
                     <Link
-                      to="/register"
+                      to="register"
                       className="block w-full py-4 px-6 bg-white text-rose-700 border-2 border-rose-100 rounded-xl font-bold hover:bg-rose-50 hover:border-rose-200 transition-all duration-200"
                     >
                       New Volunteer Reg.

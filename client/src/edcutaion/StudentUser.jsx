@@ -183,14 +183,14 @@ export default function StudentUser() {
                  
                  <div className="space-y-4">
                     <Link
-                      to="/login"
+                      to="login"
                       className="block w-full py-4 px-6 bg-sky-600 text-white rounded-xl font-bold shadow-lg shadow-sky-200 hover:bg-sky-700 hover:-translate-y-1 transition-all duration-200"
                     >
                       Login karein
                     </Link>
 
                     <Link
-                      to="/register"
+                      to="register"
                       className="block w-full py-4 px-6 bg-white text-sky-700 border-2 border-sky-100 rounded-xl font-bold hover:bg-sky-50 hover:border-sky-200 transition-all duration-200"
                     >
                       Naya Registration

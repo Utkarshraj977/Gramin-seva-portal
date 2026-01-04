@@ -43,6 +43,18 @@ import DoctorUserLogin from "./doctor/DoctorUserLogin";
 import DoctorUserRegister from "./doctor/DoctorUserRegister";
 import DoctorUserDashboard from "./doctor/DoctorUserDashboard";
 import DoctorAdminDashboard from "./doctor/DoctorAdminDashboard";
+import CyberUserRegister from "./cyber/CyberUserRegister";
+import CyberUserLogin from "./cyber/CyberUserLogin";
+import CyberAdminRegister from "./cyber/CyberAdminRegister";
+import CyberAdminLogin from "./cyber/CyberAdminLogin";
+import ComplaintUserRegister from "./complaint/ComplaintUserRegister";
+import ComplaintUserLogin from "./complaint/ComplaintUserLogin";
+import ComplaintAdminRegister from "./complaint/ComplaintAdminRegister";
+import ComplaintAdminLogin from "./complaint/ComplaintAdminLogin";
+import EducationLogin from "./edcutaion/EducationLogin";
+import EducationRegister from "./edcutaion/EducationRegister";
+import StudentRegister from "./edcutaion/StudentRegister";
+import StudentLogin from "./edcutaion/StudentLogin";
 
 
 // Router configuration
@@ -82,6 +94,9 @@ const router = createBrowserRouter([
     errorElement: <Errorpage />,
     children: [
       { path: "admin", element: <CyberAdmin />, },
+      { path: "admin/register", element: <CyberAdminRegister />,},
+      { path: "admin/login", element: <CyberAdminLogin />,},
+      { path: "admin/dashboard", element: <TravelUserDashboard />,},
 
     ],
   },
@@ -91,6 +106,9 @@ const router = createBrowserRouter([
     errorElement: <Errorpage />,
     children: [
       { path: "admin", element: <EducationAdmin />, },
+      { path: "admin/register", element: <EducationRegister />,},
+      { path: "admin/login", element: <EducationLogin />,},
+      { path: "admin/dashboard", element: <TravelUserDashboard />,},
 
     ],
   },
@@ -111,6 +129,9 @@ const router = createBrowserRouter([
     errorElement: <Errorpage />,
     children: [
       { path: "admin", element: <ComplaintAdmin />, },
+      { path: "admin/register", element: <ComplaintAdminRegister />,},
+      { path: "admin/login", element: <ComplaintAdminLogin />,},
+      { path: "admin/dashboard", element: <TravelUserDashboard />,},
     ],
   },
   {
@@ -132,6 +153,8 @@ const router = createBrowserRouter([
     ],
   },
 
+
+
   {
     path: "/traveller",
     element: <AppLayouttt />,
@@ -151,6 +174,9 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <CyberAdmin /> },
       { path: "user", element: <CyberUser />, },
+      { path: "user/register", element: <CyberUserRegister />,},
+      { path: "user/login", element: <CyberUserLogin />,},
+      { path: "user/dashboard", element: <TravelUserDashboard />,},
 
     ],
   },
@@ -161,7 +187,9 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <EducationAdmin /> },
       { path: "user", element: <StudentUser />, },
-
+      { path: "user/register", element: <StudentRegister />,},
+      { path: "user/login", element: <StudentLogin />,},
+      { path: "user/dashboard", element: <TravelUserDashboard />,},
     ],
   },
   {
@@ -183,6 +211,9 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <ComplaintAdmin /> },
       { path: "user", element: <ComplaintUser />, },
+      { path: "user/register", element: <ComplaintUserRegister />,},
+      { path: "user/login", element: <ComplaintUserLogin />,},
+      { path: "user/dashboard", element: <TravelUserDashboard />,},
     ],
   },
   {
