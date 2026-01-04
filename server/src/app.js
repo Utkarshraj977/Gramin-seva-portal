@@ -40,7 +40,8 @@ import ComplaintAdmin from "./routes/complaintAdmin.routes.js"
 import ComplaintUser from './routes/complaintuser.routes.js'
 import travelleradmin from './routes/travelleradmin.routes.js'
 import travelleruser from './routes/travelleruser.routes.js'
-
+import cyberadmin from './routes/cyber.routes.js'
+import cyberuser from './routes/cyberUser.routes.js'
 
 // --- Route Declarations ---
 app.use("/api/v1/users", userRouter)
@@ -52,6 +53,8 @@ app.use("/api/v1/ComplaintAdmin", ComplaintAdmin)
 app.use("/api/v1/complaintuser", ComplaintUser)
 app.use("/api/v1/traveller", travelleradmin)
 app.use("/api/v1/traveller", travelleruser)
+app.use("/api/v1/cyberadmin", cyberadmin)
+app.use("/api/v1/cyberuser", cyberuser)
 
 
 // --- SOCKET.IO & WEBRTC LOGIC ---
