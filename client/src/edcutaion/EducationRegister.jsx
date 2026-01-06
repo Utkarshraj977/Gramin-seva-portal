@@ -74,7 +74,7 @@ const EducationRegister = () => {
       if (response.status === 201) {
         toast.success("Educator Profile Created!");
         setTimeout(() => {
-          navigate("/education/login");
+          navigate("/education/admin/login");
         }, 2000);
       }
     } catch (error) {

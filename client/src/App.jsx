@@ -55,6 +55,8 @@ import EducationLogin from "./edcutaion/EducationLogin";
 import EducationRegister from "./edcutaion/EducationRegister";
 import StudentRegister from "./edcutaion/StudentRegister";
 import StudentLogin from "./edcutaion/StudentLogin";
+import StudentDashboard from "./edcutaion/StudentDashboard";
+import EducationDashboard from "./edcutaion/EducationDashboard";
 
 
 // Router configuration
@@ -108,7 +110,7 @@ const router = createBrowserRouter([
       { path: "admin", element: <EducationAdmin />, },
       { path: "admin/register", element: <EducationRegister />,},
       { path: "admin/login", element: <EducationLogin />,},
-      { path: "admin/dashboard", element: <TravelUserDashboard />,},
+      { path: "admin/dashboard", element: <EducationDashboard />,},
 
     ],
   },
@@ -189,7 +191,7 @@ const router = createBrowserRouter([
       { path: "user", element: <StudentUser />, },
       { path: "user/register", element: <StudentRegister />,},
       { path: "user/login", element: <StudentLogin />,},
-      { path: "user/dashboard", element: <TravelUserDashboard />,},
+      { path: "user/dashboard", element: <StudentDashboard />,},
     ],
   },
   {

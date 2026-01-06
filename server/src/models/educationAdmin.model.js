@@ -23,13 +23,13 @@ const educationSchema = new Schema(
             type:String,
             required: true,
         },
-        Start_time: {  
-            type: Date,
-            required: false
-        },
-        End_time: {   
-            type: Date,
-            required: false
+        Start_time: {
+        type: String, 
+        required: true
+         },
+        End_time: {
+        type: String,  
+        required: true
         },
         isEducator:{
             type:Boolean,
