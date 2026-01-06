@@ -3,46 +3,46 @@ import {
   createDetail,
   loginStudent,
   getAllTeacher,
-  selectTeacher,      // Spelling corrected (slect -> select)
-  getStudentDashboard, // New Feature
-  updateStudentProfile,// New Feature
-  withdrawApplication  // New Feature
-} from "../controllers/student.controller.js";
+  selectTeacher,
+  getTeacherProfile,      // New feature to see teacher details
+  getStudentDashboard,    // New feature for stats
+  updateStudentProfile,   // New feature to edit profile
+  withdrawApplication     // New feature to cancel
+} from "../controllers/student.controller.js"; // <--- IMPORT PATH FIXED
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // ==================================================
-// 1. PUBLIC ROUTE (Bina Token ke Login)
+// 1. PUBLIC ROUTE
 // ==================================================
-// Isko sabse upar rakhna zaroori hai
 router.route("/login").post(loginStudent);
 
-
 // ==================================================
-// 2. PROTECTED ROUTES (Login hona zaroori hai)
+// 2. PROTECTED ROUTES
 // ==================================================
-// Is line ke niche sab routes par Token check hoga
 router.use(verifyJWT);
 
-// Register Student Profile
+// Register
 router.route("/register").post(createDetail);
 
-// Get All Teachers List
-router.route("/allteacher").post(getAllTeacher);
+// Get All Teachers (Search & Filter)
+// Note: Changed to GET method because we use req.query for filters
+router.route("/allteacher").get(getAllTeacher);
 
-// Apply to a specific Teacher (Select Teacher)
-router.route("/allteacher/:username").get(selectTeacher);
+// View Specific Teacher Profile (Before Apply)
+router.route("/teacher/:username").get(getTeacherProfile);
 
-// 👇 NEW DASHBOARD ROUTES 👇
+// Apply to Teacher (Select)
+router.route("/apply/:username").post(selectTeacher);
 
-// Student Dashboard Stats (Applied teachers, status, etc.)
+// Dashboard
 router.route("/dashboard").get(getStudentDashboard);
 
-// Update Class/Subject/Board
+// Update Profile
 router.route("/profile/update").patch(updateStudentProfile);
 
-// Withdraw Application (Remove teacher)
+// Withdraw
 router.route("/withdraw/:username").post(withdrawApplication);
 
 export default router;

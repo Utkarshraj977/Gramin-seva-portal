@@ -35,7 +35,7 @@ const StudentRegister = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/v1/student/register",
+        "http://localhost:8000/api/v1/education/student/register",
         formData,
         { withCredentials: true }
       );

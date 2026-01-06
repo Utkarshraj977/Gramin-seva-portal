@@ -22,7 +22,7 @@ const StudentLogin = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/v1/student/login",
+        "http://localhost:8000/api/v1/education/student/login",
         { StudentKey },
         { withCredentials: true }
       );

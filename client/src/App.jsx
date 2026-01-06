@@ -57,6 +57,8 @@ import StudentRegister from "./edcutaion/StudentRegister";
 import StudentLogin from "./edcutaion/StudentLogin";
 import StudentDashboard from "./edcutaion/StudentDashboard";
 import EducationDashboard from "./edcutaion/EducationDashboard";
+import CyberDashboard from "./cyber/CyberDashboard";
+import CyberUserDashboard from "./cyber/CyberUserDashboard";
 
 
 // Router configuration
@@ -98,7 +100,7 @@ const router = createBrowserRouter([
       { path: "admin", element: <CyberAdmin />, },
       { path: "admin/register", element: <CyberAdminRegister />,},
       { path: "admin/login", element: <CyberAdminLogin />,},
-      { path: "admin/dashboard", element: <TravelUserDashboard />,},
+      { path: "admin/dashboard", element: <CyberDashboard />,},
 
     ],
   },
@@ -178,7 +180,7 @@ const router = createBrowserRouter([
       { path: "user", element: <CyberUser />, },
       { path: "user/register", element: <CyberUserRegister />,},
       { path: "user/login", element: <CyberUserLogin />,},
-      { path: "user/dashboard", element: <TravelUserDashboard />,},
+      { path: "user/dashboard", element: <CyberUserDashboard />,},
 
     ],
   },

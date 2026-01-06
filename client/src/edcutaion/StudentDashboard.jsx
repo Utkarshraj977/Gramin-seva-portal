@@ -1,346 +1,433 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  BookOpen, Search, User, Settings, LogOut, Menu, X, 
-  GraduationCap, Clock, MapPin, DollarSign, CheckCircle, 
-  AlertCircle, Trash2, ArrowRight, Star
-} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { 
+  BookOpen, Search, MapPin, IndianRupee, Clock, User, 
+  CheckCircle, XCircle, Loader2, Send, Trash2, Edit3, X, Filter, 
+  GraduationCap, RefreshCcw, Sparkles, ShieldCheck
+} from "lucide-react";
 
 const StudentDashboard = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // --- STATE ---
+  const [dashboardData, setDashboardData] = useState(null);
+  const [allTeachers, setAllTeachers] = useState([]);
+  const [filteredTeachers, setFilteredTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  // Data States
-  const [dashboardData, setDashboardData] = useState(null); // My Teachers & Stats
-  const [allTeachers, setAllTeachers] = useState([]);       // For Browsing
+  const [activeTab, setActiveTab] = useState("find"); 
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Profile Form State
-  const [profileData, setProfileData] = useState({
-    clas: "",
-    board: "",
-    subject: "",
-    location: "",
-    massage: ""
+  
+  // Profile Editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    clas: "", subject: "", board: "", location: ""
   });
 
-  // --- API CALLS ---
-  const fetchDashboardData = async () => {
+  // --- API CONFIG ---
+  const BASE_URL = "http://localhost:8000/api/v1/education/student";
+  const token = localStorage.getItem("accessToken");
+
+  const getHeaders = () => ({
+    headers: { Authorization: `Bearer ${token}` },
+    withCredentials: true
+  });
+
+  // --- 1. DATA FETCHING (No Cache) ---
+  const fetchData = useCallback(async (isBackground = false) => {
     try {
-      const res = await axios.get("http://localhost:8000/api/v1/student/dashboard", { withCredentials: true });
-      setDashboardData(res.data.data);
+      if (!isBackground) setLoading(true);
+
+      // Unique timestamp to prevent browser caching
+      const t = new Date().getTime();
+
+      const [dashRes, teachersRes] = await Promise.all([
+        axios.get(`${BASE_URL}/dashboard?_t=${t}`, getHeaders()),
+        axios.get(`${BASE_URL}/allteacher?_t=${t}`, getHeaders())
+      ]);
+
+      setDashboardData(dashRes.data.data);
+      setAllTeachers(teachersRes.data.data);
       
-      // Pre-fill profile form
-      const user = res.data.data.studentProfile;
-      setProfileData({
-        clas: user.clas || "",
-        board: user.board || "",
-        subject: user.subject || "",
-        location: user.location || "",
-        massage: user.massage || ""
-      });
-    } catch (error) {
-      console.error("Dashboard Error", error);
-    }
-  };
+      if (!isEditing && dashRes.data.data.profile) {
+        setProfileForm({
+            clas: dashRes.data.data.profile.clas || "",
+            subject: dashRes.data.data.profile.subject || "",
+            board: dashRes.data.data.profile.board || "",
+            location: dashRes.data.data.profile.location || ""
+        });
+      }
 
-  const fetchAllTeachers = async () => {
-    try {
-      const res = await axios.post("http://localhost:8000/api/v1/student/allteacher", {}, { withCredentials: true });
-      setAllTeachers(res.data.data || []);
     } catch (error) {
-      console.error("Fetch Teachers Error", error);
+      console.error("Sync Error:", error);
+      if(!isBackground) toast.error("Connection unstable");
+    } finally {
+      if (!isBackground) setLoading(false);
     }
-  };
-
-  const init = async () => {
-    setLoading(true);
-    await Promise.all([fetchDashboardData(), fetchAllTeachers()]);
-    setLoading(false);
-  };
+  }, [isEditing]);
 
   useEffect(() => {
-    init();
-  }, []);
+    fetchData();
+    const interval = setInterval(() => fetchData(true), 3000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
-  // --- HANDLERS ---
+  // --- 2. SEARCH LOGIC ---
+  useEffect(() => {
+    let baseList = activeTab === "find" ? allTeachers : [];
+    
+    if (activeTab === "my" && dashboardData?.appliedTeachers) {
+        // Filter to show only teachers I applied to, but get fresh data from allTeachers
+        baseList = allTeachers.filter(t => 
+            dashboardData.appliedTeachers.some(at => String(at._id) === String(t._id))
+        );
+    }
+
+    let results = baseList;
+    if (searchTerm) {
+        const lower = searchTerm.toLowerCase();
+        results = results.filter(t => 
+            t.userInfo?.fullname?.toLowerCase().includes(lower) ||
+            t.subject?.toLowerCase().includes(lower) ||
+            t.location?.toLowerCase().includes(lower) ||
+            t.board?.toLowerCase().includes(lower)
+        );
+    }
+    setFilteredTeachers(results);
+  }, [searchTerm, allTeachers, dashboardData, activeTab]);
+
+  // --- 3. ACTIONS ---
   const handleApply = async (username) => {
     try {
-      await axios.get(`http://localhost:8000/api/v1/student/allteacher/${username}`, { withCredentials: true });
-      toast.success("Applied successfully!");
-      fetchDashboardData(); // Refresh 'My Mentors'
+        toast.loading("Sending application...");
+        await axios.post(`${BASE_URL}/apply/${username}`, {}, getHeaders());
+        toast.dismiss();
+        toast.success("Application Sent!");
+        fetchData(true);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Application failed");
+        toast.dismiss();
+        toast.error(error.response?.data?.message || "Failed to apply");
     }
   };
 
   const handleWithdraw = async (username) => {
-    if(!window.confirm("Are you sure you want to withdraw your application?")) return;
+    if(!window.confirm("Are you sure you want to withdraw?")) return;
     try {
-      await axios.post(`http://localhost:8000/api/v1/student/withdraw/${username}`, {}, { withCredentials: true });
-      toast.success("Application withdrawn");
-      fetchDashboardData(); // Refresh list
+        await axios.post(`${BASE_URL}/withdraw/${username}`, {}, getHeaders());
+        toast.success("Withdrawn successfully");
+        fetchData(true);
     } catch (error) {
-      toast.error("Withdrawal failed");
+        toast.error("Failed to withdraw");
     }
   };
 
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
+  const handleProfileUpdate = async () => {
     try {
-      await axios.patch("http://localhost:8000/api/v1/student/profile/update", profileData, { withCredentials: true });
-      toast.success("Profile updated!");
-      fetchDashboardData();
+        await axios.patch(`${BASE_URL}/profile/update`, profileForm, getHeaders());
+        toast.success("Profile Updated");
+        setIsEditing(false);
+        fetchData(true);
     } catch (error) {
-      toast.error("Update failed");
+        toast.error("Update Failed");
     }
   };
 
-  const handleLogout = () => {
-      // Add logic to clear cookies if needed
-      navigate("/student/login");
+  // --- 4. ADVANCED STATUS CHECKER (Logic Fix) ---
+  const getApplicationStatus = (teacher) => {
+      if (!dashboardData?.profile || !teacher) return { isApplied: false, status: null };
+
+      // Helper: Convert to String safely
+      const safeStr = (val) => (val ? String(val) : "");
+
+      const myProfileId = safeStr(dashboardData.profile._id);
+      const myUserId = safeStr(dashboardData.profile.userInfo?._id);
+
+      // 1. Check inside Teacher's Students Array
+      if (teacher.students && Array.isArray(teacher.students)) {
+          const match = teacher.students.find(s => {
+              const s_pid = s.student?._id ? safeStr(s.student._id) : safeStr(s.student);
+              const s_uid = s.userInfo?._id ? safeStr(s.userInfo._id) : safeStr(s.userInfo);
+              return (s_pid === myProfileId || s_uid === myUserId);
+          });
+
+          if (match) {
+              return { isApplied: true, status: match.message || "pending" };
+          }
+      }
+
+      // 2. Fallback: Check my applied list
+      const inMyList = dashboardData.appliedTeachers?.some(t => safeStr(t._id) === safeStr(teacher._id));
+      if (inMyList) {
+          return { isApplied: true, status: "pending" };
+      }
+
+      return { isApplied: false, status: null };
   };
 
-  // Filter Logic for Browse Tab
-  const filteredTeachers = allTeachers.filter(t => 
-    t.userInfo?.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.category?.toLowerCase().includes(searchTerm.toLowerCase())
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+       <Loader2 className="animate-spin text-blue-500 w-12 h-12" />
+       <p className="text-slate-500 mt-4 tracking-widest text-xs uppercase animate-pulse">Loading Education Portal...</p>
+    </div>
   );
 
   return (
-    <div className="flex h-screen bg-orange-50/50 font-sans overflow-hidden">
-      <Toaster position="top-center" />
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans pb-12 selection:bg-blue-500/30">
+      <Toaster position="top-right" toastOptions={{ style: { background: '#0f172a', color: '#fff', border: '1px solid #1e293b' }}} />
 
-      {/* SIDEBAR */}
-      <motion.aside 
-        initial={{ x: -100 }} animate={{ x: 0 }}
-        className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-gradient-to-b from-orange-600 to-pink-600 text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}
-      >
-        <div className="p-6 flex items-center justify-between">
-          {sidebarOpen && <h1 className="text-xl font-bold tracking-wider flex gap-2 items-center"><GraduationCap/> STUDENT</h1>}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg">
-            {sidebarOpen ? <X size={20}/> : <Menu size={20}/>}
-          </button>
-        </div>
+      {/* --- HERO HEADER --- */}
+      <div className="relative bg-slate-900 border-b border-slate-800 pt-8 pb-16 px-4 overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-        <nav className="flex-1 mt-6 px-4 space-y-3">
-          <SidebarItem icon={<BookOpen size={20}/>} label="My Mentors" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} open={sidebarOpen} />
-          <SidebarItem icon={<Search size={20}/>} label="Browse Educators" active={activeTab === 'browse'} onClick={() => setActiveTab('browse')} open={sidebarOpen} />
-          <SidebarItem icon={<Settings size={20}/>} label="Profile Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} open={sidebarOpen} />
-        </nav>
-
-        <div className="p-4 border-t border-white/20">
-           <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 text-orange-100 transition-colors">
-              <LogOut size={20}/>
-              {sidebarOpen && <span>Logout</span>}
-           </button>
-        </div>
-      </motion.aside>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-        
-        {/* Header */}
-        <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-3xl shadow-sm border border-orange-100">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              {activeTab === 'dashboard' ? 'My Learning Hub' : activeTab === 'browse' ? 'Find a Mentor' : 'Account Settings'}
-            </h2>
-            <p className="text-gray-500 text-sm">
-                Hello, {dashboardData?.studentProfile?.userInfo?.fullname || "Student"} 👋
-            </p>
-          </div>
-          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center border border-orange-200 text-orange-600 font-bold">
-             {dashboardData?.studentProfile?.userInfo?.fullname?.[0] || "S"}
-          </div>
-        </header>
-
-        {loading ? (
-           <div className="flex justify-center items-center h-64"><div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div></div>
-        ) : (
-          <AnimatePresence mode="wait">
-            
-            {/* 1. MY MENTORS (DASHBOARD) */}
-            {activeTab === 'dashboard' && (
-              <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-                
-                {/* Status Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl p-6 text-white shadow-lg shadow-purple-500/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
-                        <p className="text-purple-100 mb-1">Applications Sent</p>
-                        <h3 className="text-4xl font-bold">{dashboardData?.totalApplications || 0}</h3>
-                    </div>
-                    <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col justify-center">
-                        <p className="text-gray-500 text-sm">Current Status</p>
-                        <div className="flex items-center gap-2 mt-2">
-                            <span className={`w-3 h-3 rounded-full ${dashboardData?.status === 'selected' ? 'bg-green-500' : 'bg-orange-400 animate-pulse'}`}></span>
-                            <span className="font-bold text-xl text-gray-800 capitalize">{dashboardData?.status === 'selected' ? 'Enrolled' : 'Pending Review'}</span>
-                        </div>
-                    </div>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg shadow-blue-500/20">
+                    <BookOpen className="text-white h-8 w-8" />
                 </div>
-
-                {/* Applied Teachers List */}
                 <div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">My Applied Mentors</h3>
-                    {dashboardData?.appliedTeachers?.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {dashboardData.appliedTeachers.map((teacher, index) => (
-                                <div key={index} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md hover:shadow-lg transition-all relative">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 border border-orange-100">
-                                                <User size={24}/>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-800">{teacher.userInfo?.fullname}</h4>
-                                                <p className="text-xs text-gray-500">{teacher.category}</p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleWithdraw(teacher.userInfo?.username)}
-                                            className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors" title="Withdraw Application"
-                                        >
-                                            <Trash2 size={18}/>
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-xl mb-3">
-                                        <div className="flex justify-between"><span>Timing:</span> <span className="font-medium">{teacher.Start_time} - {teacher.End_time}</span></div>
-                                        <div className="flex justify-between"><span>Location:</span> <span className="font-medium">{teacher.location}</span></div>
-                                    </div>
-                                    <div className={`text-center py-2 rounded-lg text-xs font-bold uppercase ${dashboardData.studentProfile?.message === 'selected' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                        {dashboardData.studentProfile?.message === 'selected' ? 'Approved' : 'Waiting for Approval'}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
-                            <p className="text-gray-400">You haven't applied to any teachers yet.</p>
-                            <button onClick={() => setActiveTab('browse')} className="mt-4 text-orange-600 font-bold hover:underline">Find a Mentor</button>
-                        </div>
-                    )}
+                    <h1 className="text-3xl font-bold text-white tracking-tight">Student Portal</h1>
+                    <p className="text-slate-400">Find expert tutors & manage classes</p>
                 </div>
-              </motion.div>
-            )}
+            </div>
 
-            {/* 2. BROWSE EDUCATORS */}
-            {activeTab === 'browse' && (
-              <motion.div key="browse" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="mb-6 relative max-w-lg">
-                    <Search className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+            {/* Current User Card */}
+            <div className="flex items-center gap-4 bg-slate-800/80 p-2 pr-6 rounded-full border border-slate-700/50 backdrop-blur-md shadow-xl">
+                <div className="h-12 w-12 rounded-full p-[2px] bg-gradient-to-tr from-blue-500 to-purple-500">
+                    <div className="h-full w-full rounded-full bg-slate-900 overflow-hidden">
+                        {dashboardData?.profile?.userInfo?.avatar?.url ? (
+                            <img src={dashboardData.profile.userInfo.avatar.url} alt="User" className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="h-full w-full flex items-center justify-center font-bold text-white">
+                                {dashboardData?.profile?.userInfo?.fullname?.charAt(0)}
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div>
+                    <h3 className="text-white font-medium text-sm">{dashboardData?.profile?.userInfo?.fullname}</h3>
+                    <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider">Online</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 -mt-10 relative z-10">
+        
+        {/* STATS & PROFILE SECTION */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+             
+             {/* Stats Card */}
+             <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl hover:border-blue-500/30 transition-all group">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Active Applications</p>
+                        <h3 className="text-4xl font-bold text-white mt-2 group-hover:text-blue-400 transition-colors">
+                            {dashboardData?.stats?.totalApplications || 0}
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-2">Requests currently pending or active</p>
+                    </div>
+                    <div className="h-12 w-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                        <Send size={24}/>
+                    </div>
+                </div>
+             </div>
+
+             {/* Profile Details Card */}
+             <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <GraduationCap className="text-blue-500" size={20}/> Academic Profile
+                    </h3>
+                    <button onClick={() => setIsEditing(!isEditing)} className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-slate-700">
+                        {isEditing ? <X size={14}/> : <Edit3 size={14}/>} {isEditing ? "Cancel" : "Edit"}
+                    </button>
+                </div>
+                
+                {isEditing ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in duration-300 relative z-10">
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 uppercase">Class</label>
+                            <input value={profileForm.clas} onChange={e=>setProfileForm({...profileForm, clas: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"/>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 uppercase">Subject</label>
+                            <input value={profileForm.subject} onChange={e=>setProfileForm({...profileForm, subject: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"/>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-slate-500 uppercase">Board</label>
+                            <input value={profileForm.board} onChange={e=>setProfileForm({...profileForm, board: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"/>
+                        </div>
+                        <div className="flex items-end">
+                            <button onClick={handleProfileUpdate} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors">Save Details</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-wrap gap-6 md:gap-12 relative z-10">
+                        <div><p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Class</p><p className="text-white font-medium text-lg">{dashboardData?.profile?.clas || "Not Set"}</p></div>
+                        <div><p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Board</p><p className="text-white font-medium text-lg">{dashboardData?.profile?.board || "Not Set"}</p></div>
+                        <div><p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Subject</p><span className="text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded text-sm font-medium border border-blue-500/20">{dashboardData?.profile?.subject || "Not Set"}</span></div>
+                        <div><p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Location</p><p className="text-white font-medium text-lg flex items-center gap-1"><MapPin size={14} className="text-slate-500"/> {dashboardData?.profile?.location || "Not Set"}</p></div>
+                    </div>
+                )}
+             </div>
+        </div>
+
+        {/* --- CONTROLS SECTION --- */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-sm">
+                <button 
+                  onClick={() => setActiveTab("find")} 
+                  className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === "find" ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700" : "text-slate-400 hover:text-white"}`}
+                >
+                    All Teachers
+                </button>
+                <button 
+                  onClick={() => setActiveTab("my")} 
+                  className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === "my" ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700" : "text-slate-400 hover:text-white"}`}
+                >
+                    My Applications
+                </button>
+            </div>
+
+            <div className="flex gap-3 w-full md:w-auto">
+                 <button onClick={() => fetchData()} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-400 hover:border-blue-500/30 transition-all shadow-sm" title="Refresh Data">
+                    <RefreshCcw size={20} />
+                 </button>
+                <div className="relative flex-1 md:w-80">
+                    <Search className="absolute left-3 top-3 text-slate-500" size={18}/>
                     <input 
-                        type="text" 
-                        placeholder="Search by name or subject (e.g. Math, Science)..." 
-                        className="w-full pl-12 pr-4 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none shadow-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                      type="text" 
+                      placeholder="Search teachers by name or subject..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 text-white pl-10 pr-4 py-2.5 rounded-xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-slate-600 shadow-sm"
                     />
                 </div>
+            </div>
+        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {filteredTeachers.map((teacher) => {
-                        const isApplied = dashboardData?.appliedTeachers?.some(t => t._id === teacher._id);
-                        return (
-                            <div key={teacher._id} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 hover:border-orange-200 transition-all flex flex-col h-full">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <img 
-                                        src={teacher.Education_certificate?.url || "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"} 
-                                        alt="cert" 
-                                        className="w-16 h-16 rounded-2xl object-cover bg-gray-100"
-                                    />
-                                    <div>
-                                        <h3 className="font-bold text-lg text-gray-800 leading-tight">{teacher.userInfo?.fullname}</h3>
-                                        <span className="inline-block bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 uppercase tracking-wide">{teacher.category}</span>
-                                    </div>
-                                </div>
+        {/* --- TEACHER CARDS GRID --- */}
+        {filteredTeachers.length === 0 ? (
+            <div className="bg-slate-900/50 border border-slate-800 border-dashed rounded-3xl p-16 text-center">
+                <div className="h-16 w-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Filter className="h-8 w-8 text-slate-600" />
+                </div>
+                <h3 className="text-slate-300 font-medium text-lg">No teachers found</h3>
+                <p className="text-slate-500 mt-2 max-w-sm mx-auto">We couldn't find any teachers matching your current filters. Try changing tabs or keywords.</p>
+            </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20">
+                {filteredTeachers.map((teacher) => {
+                    const { isApplied, status } = getApplicationStatus(teacher);
+                    
+                    const st = status ? status.toLowerCase() : "";
+                    const isSelected = st === 'selected' || st === 'accepted' || st === 'enrolled';
+                    const isRejected = st === 'rejected';
+
+                    return (
+                        <div key={teacher._id} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:shadow-2xl hover:shadow-blue-900/10 hover:border-slate-700 transition-all duration-300 group flex flex-col relative">
+                            
+                            {/* Card Header (Cover) */}
+                            <div className="relative h-32 bg-slate-800 overflow-hidden">
+                                {/* Gradient Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-b from-blue-900/20 via-slate-900/60 to-slate-900"></div>
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
                                 
-                                <div className="space-y-3 mb-6 flex-1">
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <Clock size={16} className="text-orange-400"/> {teacher.Start_time} - {teacher.End_time}
+                                {/* Status Badge (Top Right) */}
+                                {isApplied && (
+                                    <div className="absolute top-4 right-4 z-20">
+                                        <div className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-lg border flex items-center gap-1.5
+                                            ${isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 
+                                              isRejected ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                                              'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+                                            {isSelected ? <ShieldCheck size={12}/> : isRejected ? <XCircle size={12}/> : <Clock size={12}/>}
+                                            {isSelected ? "Enrolled" : isRejected ? "Rejected" : "Pending"}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <DollarSign size={16} className="text-green-500"/> ₹{teacher.fee} / month
+                                )}
+                            </div>
+
+                            {/* Profile Image (Overlapping) */}
+                            <div className="px-6 relative -mt-14 flex justify-between items-end">
+                                <div className="relative">
+                                    <div className="h-24 w-24 rounded-2xl bg-slate-800 p-1.5 border border-slate-700 shadow-xl group-hover:scale-105 transition-transform duration-300">
+                                        <div className="h-full w-full rounded-xl bg-slate-900 overflow-hidden relative">
+                                            {teacher.userInfo?.avatar?.url ? (
+                                                <img src={teacher.userInfo.avatar.url} alt="Teacher" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-800 text-slate-400 font-bold text-3xl">
+                                                    {teacher.userInfo?.fullname?.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <MapPin size={16} className="text-blue-400"/> {teacher.location}
+                                    {/* Verified Badge */}
+                                    <div className="absolute -bottom-2 -right-2 bg-blue-500 text-white p-1 rounded-full border-4 border-slate-900" title="Verified Teacher">
+                                        <Sparkles size={12} fill="white"/>
                                     </div>
                                 </div>
 
-                                <button 
-                                    onClick={() => !isApplied && handleApply(teacher.userInfo?.username)}
-                                    disabled={isApplied}
-                                    className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isApplied ? 'bg-green-100 text-green-700 cursor-default' : 'bg-black text-white hover:bg-gray-800'}`}
-                                >
-                                    {isApplied ? <><CheckCircle size={18}/> Applied</> : <>Apply Now <ArrowRight size={18}/></>}
-                                </button>
+                                <div className="text-right mb-2">
+                                    <div className="text-2xl font-bold text-white tracking-tight">₹{teacher.fee}</div>
+                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider bg-slate-800 px-2 py-0.5 rounded-md inline-block">Per Month</div>
+                                </div>
                             </div>
-                        );
-                    })}
-                    {filteredTeachers.length === 0 && <div className="col-span-full text-center py-10 text-gray-400">No educators found matching your search.</div>}
-                </div>
-              </motion.div>
-            )}
 
-            {/* 3. SETTINGS TAB */}
-            {activeTab === 'settings' && (
-              <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="max-w-2xl mx-auto bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <Settings className="text-orange-500"/> Update Profile
-                    </h3>
-                    <form onSubmit={handleProfileUpdate} className="space-y-5">
-                        <div className="grid grid-cols-2 gap-5">
-                            <div>
-                                <label className="text-sm font-bold text-gray-700 block mb-2">Class / Grade</label>
-                                <input type="text" value={profileData.clas} onChange={(e) => setProfileData({...profileData, clas: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. 10th"/>
+                            {/* Card Content */}
+                            <div className="p-6 pt-4 flex-1 flex flex-col">
+                                <div className="mb-6">
+                                    <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors truncate">{teacher.userInfo?.fullname}</h3>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                        <span className="text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2.5 py-1 rounded-md font-medium">{teacher.subject}</span>
+                                        <span className="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-1 rounded-md">{teacher.board}</span>
+                                        <span className="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-1 rounded-md">{teacher.category}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 mb-8 flex-1">
+                                    <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-800/50 p-2 rounded-lg border border-slate-800/50">
+                                        <MapPin size={16} className="text-blue-500"/> 
+                                        <span className="truncate">{teacher.location}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-800/50 p-2 rounded-lg border border-slate-800/50">
+                                        <Clock size={16} className="text-orange-500"/> 
+                                        <span className="truncate">{teacher.Start_time} - {teacher.End_time}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-800/50 p-2 rounded-lg border border-slate-800/50">
+                                        <BookOpen size={16} className="text-purple-500"/> 
+                                        <span className="truncate">{teacher.Experience} Experience</span>
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                {isApplied ? (
+                                    <button 
+                                      onClick={() => handleWithdraw(teacher.userInfo.username)}
+                                      className="w-full py-3.5 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 text-slate-400 rounded-xl font-medium transition-all border border-slate-700 flex justify-center items-center gap-2 group/btn"
+                                    >
+                                        <Trash2 size={18} className="group-hover/btn:text-red-500 transition-colors"/> Withdraw Application
+                                    </button>
+                                ) : (
+                                    <button 
+                                      onClick={() => handleApply(teacher.userInfo.username)}
+                                      className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 flex justify-center items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <Send size={18}/> Apply Now
+                                    </button>
+                                )}
                             </div>
-                            <div>
-                                <label className="text-sm font-bold text-gray-700 block mb-2">Board</label>
-                                <input type="text" value={profileData.board} onChange={(e) => setProfileData({...profileData, board: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. CBSE"/>
-                            </div>
                         </div>
-                        <div>
-                            <label className="text-sm font-bold text-gray-700 block mb-2">Subject Stream</label>
-                            <input type="text" value={profileData.subject} onChange={(e) => setProfileData({...profileData, subject: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="e.g. Science (PCM)"/>
-                        </div>
-                        <div>
-                            <label className="text-sm font-bold text-gray-700 block mb-2">My Location</label>
-                            <input type="text" value={profileData.location} onChange={(e) => setProfileData({...profileData, location: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none"/>
-                        </div>
-                        <div>
-                            <label className="text-sm font-bold text-gray-700 block mb-2">Goal / Message</label>
-                            <textarea rows="3" value={profileData.massage} onChange={(e) => setProfileData({...profileData, massage: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 outline-none resize-none" placeholder="Update your study goals..."></textarea>
-                        </div>
-
-                        <button className="w-full py-4 bg-gradient-to-r from-orange-500 to-pink-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all mt-4">
-                            Save Changes
-                        </button>
-                    </form>
-                </div>
-              </motion.div>
-            )}
-
-          </AnimatePresence>
+                    );
+                })}
+            </div>
         )}
-      </main>
+      </div>
     </div>
   );
 };
-
-const SidebarItem = ({ icon, label, active, onClick, open }) => (
-  <button 
-    onClick={onClick}
-    className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 ${active ? 'bg-white text-orange-600 shadow-md' : 'text-orange-50 hover:bg-white/10'}`}
-  >
-    {icon}
-    {open && <span className="font-medium">{label}</span>}
-  </button>
-);
 
 export default StudentDashboard;

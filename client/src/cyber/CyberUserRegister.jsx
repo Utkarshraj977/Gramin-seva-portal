@@ -181,7 +181,7 @@ const CyberUserRegister = () => {
             <div className="text-center mt-4">
                <p className="text-gray-400 text-sm">
                  Need to verify status?{" "}
-                 <Link to="/cyber/user//login" className="text-emerald-400 hover:text-emerald-300 font-semibold hover:underline transition-colors">
+                 <Link to="/cyber/user/login" className="text-emerald-400 hover:text-emerald-300 font-semibold hover:underline transition-colors">
                    Login here
                  </Link>
                </p>

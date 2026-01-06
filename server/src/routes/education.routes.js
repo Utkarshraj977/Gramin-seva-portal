@@ -4,31 +4,39 @@ import {
   loginTeacher,
   getAllStudent,
   teacherSubmit,
-  rejectStudent,       // New
-  updateTeacherProfile,// New
-  getDashboardStats    // New
+  rejectStudent,       
+  removeStudent,       // <--- NEW: Added this import
+  updateTeacherProfile,
+  getDashboardStats    
 } from "../controllers/education.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// Public Route
+// ============================================================================
+// PUBLIC ROUTES
+// ============================================================================
 router.route("/login").post(loginTeacher);
 
-// Protected Routes
+// ============================================================================
+// PROTECTED ROUTES (Requires Login)
+// ============================================================================
 router.use(verifyJWT);
 
+// 1. Register Profile
 router.route("/register").post(
     upload.fields([{ name: "Education_certificate", maxCount: 1 }]),
     createDetail
 );
 
-router.route("/allstudent").post(getAllStudent);
-router.route("/allstudent/submit/:username").post(teacherSubmit);
+// 2. Student Management
+router.route("/allstudent").post(getAllStudent);               // Fetch List
+router.route("/allstudent/submit/:username").post(teacherSubmit); // Accept
+router.route("/student/reject/:username").post(rejectStudent);    // Reject
+router.route("/student/remove/:username").delete(removeStudent);  // Remove/Delete (New)
 
-// 👇 Ye Routes Missing the, isliye 404 aa raha tha
-router.route("/student/reject/:username").post(rejectStudent);
+// 3. Dashboard & Settings
 router.route("/profile/update").patch(updateTeacherProfile);
 router.route("/dashboard/stats").get(getDashboardStats);
 
