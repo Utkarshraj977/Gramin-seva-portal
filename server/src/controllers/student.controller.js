@@ -116,12 +116,30 @@ const selectTeacher = asyncHandler(async (req, res) => {
 // ==================================================
 // 6. STUDENT DASHBOARD (Stats & Status)
 // ==================================================
+// ==================================================
+// 6. STUDENT DASHBOARD (Updated Fix)
+// ==================================================
 const getStudentDashboard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
 
+    // 1. Student Profile Dhundho
     const currentStudent = await Student.findOne({ "userInfo._id": userId });
-    if (!currentStudent) throw new ApiError(404, "Student profile not found");
 
+    // ✅ FIX: Agar student profile nahi mili, to 404 Error mat phenko.
+    // Balki "null" profile return karo taaki frontend crash na ho.
+    if (!currentStudent) {
+        return res.status(200).json(new ApiResponse(200, {
+            profile: null,
+            appliedTeachers: [],
+            stats: {
+                totalApplications: 0,
+                currentStatus: "Not Registered",
+                totalFees: 0
+            }
+        }, "New user - No profile created yet"));
+    }
+
+    // 2. Agar student mil gaya, to aage ka data fetch karo
     const myTeachers = await Education.find({
         student: currentStudent._id
     }).select("-EducatorKey -userInfo.password");
@@ -142,7 +160,6 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, dashboardData, "Dashboard ready"));
 });
-
 // ==================================================
 // 7. WITHDRAW APPLICATION
 // ==================================================

@@ -35,7 +35,6 @@ import userRouter from './routes/user.routes.js'
 import doctorRouter from './routes/doctor.routes.js'
 import patientRouter from './routes/patient.routes.js'
 import educationRouter from './routes/education.routes.js'
-import studentRouter from './routes/student.routes.js'
 import ComplaintAdmin from "./routes/complaintAdmin.routes.js"
 import ComplaintUser from './routes/complaintuser.routes.js'
 import travelleradmin from './routes/travelleradmin.routes.js'
