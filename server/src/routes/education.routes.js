@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createDetail,
+  getCurrentUser,
   loginTeacher,
   getAllStudent,
   teacherSubmit,
@@ -39,5 +40,5 @@ router.route("/student/remove/:username").delete(removeStudent);  // Remove/Dele
 // 3. Dashboard & Settings
 router.route("/profile/update").patch(updateTeacherProfile);
 router.route("/dashboard/stats").get(getDashboardStats);
-
+router.route("/current-user").get(verifyJWT, getCurrentUser);
 export default router;

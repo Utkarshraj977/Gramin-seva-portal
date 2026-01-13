@@ -53,7 +53,7 @@ app.use("/api/v1/complaintuser", ComplaintUser)
 app.use("/api/v1/traveller", travelleradmin)
 app.use("/api/v1/traveller", travelleruser)
 app.use("/api/v1/cyberadmin", cyberadmin)
-app.use("/api/v1/cyberuser", cyberuser)
+app.use("/api/v1/cyberuser", cyberuser) 
 
 
 // --- SOCKET.IO & WEBRTC LOGIC ---

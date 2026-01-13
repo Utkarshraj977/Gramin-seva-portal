@@ -219,8 +219,19 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, stats, "Stats Fetched"));
 });
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200, 
+                req.user, // This contains _id, fullname, email, etc.
+                "Current user fetched successfully"
+            )
+        );
+});
 
 export { 
     createDetail, loginTeacher, getAllStudent, teacherSubmit, 
-    rejectStudent, removeStudent, updateTeacherProfile, getDashboardStats 
+    rejectStudent, removeStudent,getCurrentUser, updateTeacherProfile, getDashboardStats 
 };

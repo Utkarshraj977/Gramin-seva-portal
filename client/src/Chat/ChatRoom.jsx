@@ -9,7 +9,7 @@ const peerConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ]
-};
+}; 
 
 const ChatRoom = ({ roomId, currentUser, targetUser }) => {
   const [socket, setSocket] = useState(null);
@@ -21,7 +21,6 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [callOffer, setCallOffer] = useState(null);
   const [myStream, setMyStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
   
   // Media Controls
   const [micOn, setMicOn] = useState(true);
@@ -31,7 +30,7 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
   const myVideoRef = useRef();
   const remoteVideoRef = useRef();
   const peerConnectionRef = useRef(null);
-  const messagesEndRef = useRef(null); // Used for auto-scroll
+  const messagesEndRef = useRef(null);
 
   // --- 1. INITIALIZE SOCKET ---
   useEffect(() => {
@@ -39,12 +38,16 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
     const newSocket = io('http://localhost:8000'); 
     setSocket(newSocket);
 
+    // DEBUG LOGS
+    console.log(`🔌 Joining Room: ${roomId}`);
+    console.log(`👤 My ID: ${currentUser.id}`);
+
     // Join the specific room
     newSocket.emit('join-room', roomId);
 
     // LISTEN FOR MESSAGES
     newSocket.on('receive-message', (data) => {
-      console.log("Message Received:", data);
+      console.log("📩 Message Received:", data);
       setMessages((prevMessages) => [...prevMessages, data]);
     });
 
@@ -82,7 +85,7 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
 
     const msgData = {
       roomId,
-      senderId: currentUser.id, // We use ID to check "Is this me?"
+      senderId: String(currentUser.id), // Ensure String for comparison
       text: currentMessage,
       time: timeNow,
     };
@@ -97,14 +100,13 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
     setCurrentMessage("");
   };
 
-  // --- WEBRTC CALL FUNCTIONS (Same as before) ---
+  // --- WEBRTC CALL FUNCTIONS ---
   const createPeerConnection = async () => {
     const pc = new RTCPeerConnection(peerConfiguration);
     pc.onicecandidate = (e) => {
       if (e.candidate) socket.emit('ice-candidate', { roomId, candidate: e.candidate });
     };
     pc.ontrack = (e) => {
-      setRemoteStream(e.streams[0]);
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = e.streams[0];
     };
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -138,7 +140,6 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
     if (pc) pc.close();
     if (myStream) myStream.getTracks().forEach(track => track.stop());
     setMyStream(null);
-    setRemoteStream(null);
     setIsInCall(false);
     setIsIncomingCall(false);
   };
@@ -169,8 +170,8 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
       {/* --- CHAT MESSAGES AREA --- */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-repeat bg-opacity-30">
         {messages.map((msg, index) => {
-            // Logic: Is this message sent by ME?
-            const isMe = msg.senderId === currentUser.id;
+            // FIX: Convert both IDs to String for safe comparison
+            const isMe = String(msg.senderId) === String(currentUser.id);
 
             return (
               <div key={index} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -214,22 +215,7 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
         </button>
       </div>
 
-      {/* --- INCOMING CALL & VIDEO OVERLAY (Keep existing code) --- */}
-      {isIncomingCall && (
-        <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center text-white animate-in fade-in">
-          <img src={targetUser?.avatar} className="w-24 h-24 rounded-full mb-4 border-4 border-white animate-pulse" alt="" />
-          <h2 className="text-2xl font-bold mb-2">{targetUser?.name} is calling...</h2>
-          <div className="flex gap-8 mt-8">
-            <button onClick={answerCall} className="bg-green-500 hover:bg-green-600 p-4 rounded-full shadow-lg transition-transform hover:scale-110">
-              <Phone size={32} />
-            </button>
-            <button onClick={() => setIsIncomingCall(false)} className="bg-red-500 hover:bg-red-600 p-4 rounded-full shadow-lg transition-transform hover:scale-110">
-              <PhoneOff size={32} />
-            </button>
-          </div>
-        </div>
-      )}
-
+      {/* --- CALL OVERLAY --- */}
       {isInCall && (
         <div className="absolute inset-0 z-40 bg-gray-900 flex flex-col">
             <div className="flex-1 relative">
@@ -251,7 +237,17 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
             </div>
         </div>
       )}
-
+      
+      {isIncomingCall && (
+        <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center text-white animate-in fade-in">
+          <img src={targetUser?.avatar} className="w-24 h-24 rounded-full mb-4 border-4 border-white animate-pulse" alt="" />
+          <h2 className="text-2xl font-bold mb-2">{targetUser?.name} is calling...</h2>
+          <div className="flex gap-8 mt-8">
+            <button onClick={answerCall} className="bg-green-500 hover:bg-green-600 p-4 rounded-full shadow-lg hover:scale-110"><Phone size={32} /></button>
+            <button onClick={() => setIsIncomingCall(false)} className="bg-red-500 hover:bg-red-600 p-4 rounded-full shadow-lg hover:scale-110"><PhoneOff size={32} /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

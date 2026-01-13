@@ -1,461 +1,306 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
+// ✅ YOUR CORRECT PATH
+import ChatRoom from '../Chat/ChatRoom'; 
 import { 
-  Users, GraduationCap, IndianRupee, Clock, MapPin, 
-  Search, CheckCircle, XCircle, Loader2, Edit3, Save, X, 
-  BookOpen, Trash2, Download, Zap, TrendingUp, Phone, Mail
+    Users, DollarSign, Clock, MapPin, CheckCircle, XCircle, 
+    Search, Settings, LayoutDashboard, UserCheck, Menu, X, Save, MessageSquare
 } from "lucide-react";
 
 const EducationDashboard = () => {
-  // --- STATE ---
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeStudents: 0,
-    pendingRequests: 0,
-    estimatedEarnings: 0,
-    fee: 0,
-    location: "",
-    timings: ""
-  });
-  const [students, setStudents] = useState([]);
-  const [filteredStudents, setFilteredStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  // Edit Profile State
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({ fee: "", location: "", Start_time: "", End_time: "" });
+    const [activeTab, setActiveTab] = useState("dashboard");
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [loading, setLoading] = useState(true);
 
-  // --- API CONFIG ---
-  const BASE_URL = "http://localhost:8000/api/v1/education";
-  const token = localStorage.getItem("accessToken");
+    // Data
+    const [stats, setStats] = useState(null);
+    const [students, setStudents] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
 
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
+    // Chat & User State
+    const [activeChatStudent, setActiveChatStudent] = useState(null);
+    const [currentEducator, setCurrentEducator] = useState(null);
 
-  // --- 1. DATA FETCHING ---
-  const fetchDashboardData = async (isBackground = false) => {
-    try {
-      if (!isBackground) setLoading(true);
+    // Profile Form
+    const [profileData, setProfileData] = useState({ fee: "", Start_time: "", End_time: "", location: "" });
 
-      const [statsRes, studentsRes] = await Promise.all([
-        axios.get(`${BASE_URL}/dashboard/stats`, getHeaders()),
-        axios.post(`${BASE_URL}/allstudent`, {}, getHeaders())
-      ]);
+    // --- FETCH DATA ---
+    const fetchAllData = async () => {
+        setLoading(true);
+        try {
+            // 1. Get Stats
+            const statsRes = await axios.get("http://localhost:8000/api/v1/education/dashboard/stats", { withCredentials: true });
+            setStats(statsRes.data.data);
 
-      const sData = statsRes.data.data;
-      setStats(sData);
-      
-      // Initialize edit form
-      if (!isEditing) {
-          const [start, end] = sData.timings ? sData.timings.split(" - ") : ["", ""];
-          setProfileData({
-            fee: sData.fee,
-            location: sData.location,
-            Start_time: start,
-            End_time: end
-          });
-      }
+            // 2. Get Current User (Fixed Logic)
+            try {
+                const userRes = await axios.get("http://localhost:8000/api/v1/users/current-user", { withCredentials: true });
+                setCurrentEducator(userRes.data.data); // Store the User Object
+                console.log("Logged In Admin ID:", userRes.data.data._id); 
+            } catch (err) {
+                console.error("Failed to fetch user ID for chat", err);
+            }
 
-      // Ensure students have unique keys and data structure is correct
-      const studentList = studentsRes.data.data || [];
-      setStudents(studentList);
-      
-      // Update filtered list only if not searching
-      if (!searchTerm) setFilteredStudents(studentList);
+            // Pre-fill form
+            setProfileData({
+                fee: statsRes.data.data.fee || "",
+                Start_time: statsRes.data.data.timings?.split(" - ")[0] || "",
+                End_time: statsRes.data.data.timings?.split(" - ")[1] || "",
+                location: statsRes.data.data.location || ""
+            });
 
-    } catch (error) {
-      console.error("Dashboard Error:", error);
-      if(!isBackground) toast.error("Failed to sync dashboard");
-    } finally {
-      if (!isBackground) setLoading(false);
-    }
-  };
+            // 3. Get Student List
+            const studentsRes = await axios.post("http://localhost:8000/api/v1/education/allstudent", {}, { withCredentials: true });
+            setStudents(studentsRes.data.data || []);
 
-  // Auto Refresh
-  useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(() => fetchDashboardData(true), 5000);
-    return () => clearInterval(interval);
-  }, []);
+        } catch (error) {
+            console.error("Load Error:", error);
+            toast.error("Could not sync data");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  // --- 2. SEARCH LOGIC ---
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredStudents(students);
-    } else {
-      const lower = searchTerm.toLowerCase();
-      const results = students.filter(s => 
-        (s.userInfo?.fullname && s.userInfo.fullname.toLowerCase().includes(lower)) ||
-        (s.subject && s.subject.toLowerCase().includes(lower)) ||
-        (s.userInfo?.username && s.userInfo.username.toLowerCase().includes(lower))
-      );
-      setFilteredStudents(results);
-    }
-  }, [searchTerm, students]);
+    useEffect(() => {
+        fetchAllData();
+    }, []);
 
-  // --- 3. ACTIONS ---
-  const handleAction = async (username, type) => {
-    if(!username) return toast.error("User data missing");
-    
-    // Optimistic UI Update: Local state ko pehle update kar do taaki UI "Jhatka" na khaye
-    // This prevents "All Accept" glitch visually
-    const originalStudents = [...students]; // Backup
+    // --- HANDLERS ---
+    const handleApprove = async (username) => {
+        try {
+            await axios.post(`http://localhost:8000/api/v1/education/allstudent/submit/${username}`, {}, { withCredentials: true });
+            toast.success("Student Enrolled Successfully!");
+            setStudents(prev => prev.map(s =>
+                s.userInfo?.username === username ? { ...s, message: 'selected' } : s
+            ));
+        } catch (error) {
+            toast.error("Approval failed");
+        }
+    };
 
-    // Confirm Action
-    if(!window.confirm(`Are you sure you want to ${type} this student?`)) return;
+    const handleReject = async (username) => {
+        if (!window.confirm("Reject this student?")) return;
+        try {
+            await axios.post(`http://localhost:8000/api/v1/education/student/reject/${username}`, {}, { withCredentials: true });
+            toast.success("Student Rejected");
+            setStudents(prev => prev.map(s =>
+                s.userInfo?.username === username ? { ...s, message: 'rejected' } : s
+            ));
+        } catch (error) {
+            toast.error("Rejection failed");
+        }
+    };
 
-    let url = "";
-    let method = "post";
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        try {
+            const updatePayload = {
+                fee: profileData.fee,
+                location: profileData.location,
+                batchTiming: `${profileData.Start_time} - ${profileData.End_time}`
+            };
+            await axios.patch("http://localhost:8000/api/v1/education/profile/update", updatePayload, { withCredentials: true });
+            toast.success("Profile Updated!");
+            fetchAllData();
+        } catch (error) {
+            toast.error("Update failed");
+        }
+    };
 
-    if (type === "accept") url = `${BASE_URL}/allstudent/submit/${username}`;
-    else if (type === "reject") url = `${BASE_URL}/student/reject/${username}`;
-    else if (type === "remove") {
-        url = `${BASE_URL}/student/remove/${username}`;
-        method = "delete";
-    }
+    const handleStartChat = (student) => {
+        setActiveChatStudent(student);
+    };
 
-    try {
-      toast.loading("Processing...");
-      await axios[method](url, {}, getHeaders());
-      toast.dismiss();
-      toast.success(`Action Successful: ${type}`);
-      
-      // Refresh Data from Server to be sure
-      fetchDashboardData(true);
-    } catch (error) {
-      toast.dismiss();
-      toast.error(error.response?.data?.message || "Action Failed");
-      // Revert if failed
-      setStudents(originalStudents);
-    }
-  };
-
-  // --- 4. PROFILE UPDATE ---
-  const handleUpdateProfile = async () => {
-    try {
-        toast.loading("Updating Profile...");
-        await axios.patch(`${BASE_URL}/profile/update`, profileData, getHeaders());
-        toast.dismiss();
-        toast.success("Profile Updated");
-        setIsEditing(false);
-        fetchDashboardData(true);
-    } catch (error) {
-        toast.dismiss();
-        toast.error("Update Failed");
-    }
-  };
-
-  // --- 5. EXPORT CSV ---
-  const downloadCSV = () => {
-    const headers = ["Name, Username, Phone, Class, Board, Subject, Location, Status"];
-    const rows = students.map(s => 
-        `${s.userInfo?.fullname}, ${s.userInfo?.username}, ${s.userInfo?.phone || "N/A"}, ${s.clas}, ${s.board}, ${s.subject}, ${s.location}, ${s.message}`
+    const filteredStudents = students.filter(stu =>
+        stu.userInfo?.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stu.subject?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "student_list.csv");
-    document.body.appendChild(link);
-    link.click();
-  };
 
-  if (loading) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
-       <Loader2 className="animate-spin text-blue-500 w-12 h-12" />
-       <p className="text-slate-500 mt-4 tracking-widest text-xs uppercase">Loading Classroom...</p>
-    </div>
-  );
+    return (
+        <div className="flex h-screen bg-gray-50 overflow-hidden font-sans relative">
+            <Toaster position="top-right" />
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans pb-12">
-      <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }}} />
-
-      {/* HEADER */}
-      <div className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-3">
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-blue-900/20">
-                    <GraduationCap className="text-white" size={24} />
+            {/* SIDEBAR */}
+            <motion.aside
+                initial={{ x: -100 }} animate={{ x: 0 }}
+                className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-blue-900 text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}
+            >
+                <div className="p-6 flex items-center justify-between">
+                    {sidebarOpen && <h1 className="text-2xl font-bold font-serif tracking-wider text-amber-400">EDU ADMIN</h1>}
+                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-blue-800 rounded-lg">
+                        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                    </button>
                 </div>
-                <div>
-                    <h1 className="text-xl font-bold text-white tracking-tight">Teacher Admin</h1>
-                    <p className="text-xs text-slate-400 font-medium">Manage Batch & Earnings</p>
-                </div>
-            </div>
-            
-            <div className="flex gap-3 w-full md:w-auto">
-                <button 
-                  onClick={downloadCSV}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm transition border border-slate-700"
-                >
-                    <Download size={16}/> <span className="hidden sm:inline">Export Data</span>
-                </button>
-                <div className="flex items-center gap-2 bg-green-500/10 text-green-400 px-4 py-2 rounded-lg text-sm border border-green-500/20">
-                    <Zap size={14} className="fill-green-400"/> Status: Active
-                </div>
-            </div>
-        </div>
-      </div>
+                <nav className="flex-1 mt-6 px-4 space-y-3">
+                    <SidebarItem icon={<LayoutDashboard size={20} />} label="Overview" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} open={sidebarOpen} />
+                    <SidebarItem icon={<Users size={20} />} label="Students" active={activeTab === 'students'} onClick={() => setActiveTab('students')} open={sidebarOpen} />
+                    <SidebarItem icon={<Settings size={20} />} label="Settings" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} open={sidebarOpen} />
+                </nav>
+            </motion.aside>
 
-      <div className="max-w-7xl mx-auto px-4 mt-8">
-        
-        {/* STATS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <StatCard icon={<Users/>} title="Total Students" value={stats.totalStudents} color="text-blue-400" bg="bg-blue-500/10" border="border-blue-500/20" />
-            <StatCard icon={<CheckCircle/>} title="Active Students" value={stats.activeStudents} color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
-            <StatCard icon={<Clock/>} title="Pending Requests" value={stats.pendingRequests} color="text-amber-400" bg="bg-amber-500/10" border="border-amber-500/20" />
-            <StatCard icon={<IndianRupee/>} title="Est. Earnings" value={`₹${stats.estimatedEarnings}`} color="text-purple-400" bg="bg-purple-500/10" border="border-purple-500/20" />
-        </div>
+            {/* MAIN CONTENT */}
+            <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
 
-        {/* QUICK SETTINGS (Profile Edit) */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <TrendingUp className="text-blue-500" size={20}/> Class Configuration
-                </h2>
-                <button onClick={() => setIsEditing(!isEditing)} className="text-blue-400 text-sm hover:text-blue-300 flex items-center gap-1 transition-colors">
-                    {isEditing ? <X size={14}/> : <Edit3 size={14}/>} {isEditing ? "Cancel Edit" : "Edit Details"}
-                </button>
-            </div>
+                {loading && !stats ? (
+                    <div className="flex justify-center items-center h-full"><div className="w-12 h-12 border-4 border-blue-600 rounded-full animate-spin border-t-transparent"></div></div>
+                ) : (
+                    <AnimatePresence mode="wait">
 
-            {isEditing ? (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in duration-300">
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-500 ml-1">Monthly Fee (₹)</label>
-                        <input type="number" value={profileData.fee} onChange={(e) => setProfileData({...profileData, fee: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500 transition-colors"/>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-500 ml-1">Location</label>
-                        <input type="text" value={profileData.location} onChange={(e) => setProfileData({...profileData, location: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500 transition-colors"/>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-500 ml-1">Time Slot (Start - End)</label>
-                        <div className="flex gap-2">
-                             <input type="text" placeholder="10:00" value={profileData.Start_time} onChange={(e) => setProfileData({...profileData, Start_time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-white outline-none focus:border-blue-500"/>
-                             <input type="text" placeholder="12:00" value={profileData.End_time} onChange={(e) => setProfileData({...profileData, End_time: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-white outline-none focus:border-blue-500"/>
-                        </div>
-                    </div>
-                    <div className="flex items-end">
-                        <button onClick={handleUpdateProfile} className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-6 py-2 flex items-center justify-center gap-2 transition-colors">
-                            <Save size={18}/> Save
+                        {/* 1. DASHBOARD OVERVIEW */}
+                        {activeTab === 'dashboard' && (
+                            <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <StatCard title="Total Students" value={stats?.totalStudents || 0} icon={<Users className="text-blue-600" />} color="bg-blue-50 border-blue-200" />
+                                    <StatCard title="Active Enrolled" value={stats?.activeStudents || 0} icon={<UserCheck className="text-green-600" />} color="bg-green-50 border-green-200" />
+                                    <StatCard title="Pending Requests" value={stats?.pendingRequests || 0} icon={<Clock className="text-amber-600" />} color="bg-amber-50 border-amber-200" />
+                                    <StatCard title="Est. Earnings" value={`₹${stats?.estimatedEarnings || 0}`} icon={<DollarSign className="text-purple-600" />} color="bg-purple-50 border-purple-200" />
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* 2. STUDENTS TAB */}
+                        {activeTab === 'students' && (
+                            <motion.div key="students" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                                <div className="flex mb-6">
+                                    <div className="relative w-full md:w-96">
+                                        <Search className="absolute left-3 top-3.5 text-gray-400" size={18} />
+                                        <input type="text" placeholder="Search students..." className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {filteredStudents.map(student => (
+                                        <div key={student._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden">
+                                            <div className={`absolute top-0 left-0 w-2 h-full ${getStatusColor(student.message)}`}></div>
+
+                                            <div className="flex justify-between items-start mb-4 pl-4">
+                                                <div className="flex items-center gap-3">
+                                                    <img src={student.userInfo?.avatar?.url || "https://ui-avatars.com/api/?name=St"} alt="av" className="w-12 h-12 rounded-full object-cover bg-gray-100 border border-gray-200" />
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-800">{student.userInfo?.fullname}</h4>
+                                                        <p className="text-xs text-gray-500">@{student.userInfo?.username}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleStartChat(student)} className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition" title="Chat">
+                                                        <MessageSquare size={16} />
+                                                    </button>
+                                                    <Badge status={student.message} />
+                                                </div>
+                                            </div>
+
+                                            <div className="pl-4 space-y-2 mb-6 text-sm text-gray-600">
+                                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-1"><span>Class:</span> <span className="font-medium text-gray-800">{student.clas} ({student.board})</span></div>
+                                                <div className="flex justify-between border-b border-dashed border-gray-200 pb-1"><span>Subject:</span> <span className="font-medium text-gray-800">{student.subject}</span></div>
+                                                <div className="flex justify-between pb-1"><span>Location:</span> <span className="font-medium text-gray-800">{student.location}</span></div>
+                                            </div>
+
+                                            <div className="pl-4 flex gap-3">
+                                                {student.message !== 'rejected' && (
+                                                    <button
+                                                        onClick={() => handleApprove(student.userInfo?.username)}
+                                                        disabled={student.message === 'selected'}
+                                                        className={`flex-1 py-2 rounded-lg font-semibold text-sm flex justify-center items-center gap-2 ${student.message === 'selected' ? 'bg-green-100 text-green-700 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20'}`}
+                                                    >
+                                                        {student.message === 'selected' ? <><CheckCircle size={16} /> Enrolled</> : <>Approve <CheckCircle size={16} /></>}
+                                                    </button>
+                                                )}
+
+                                                {student.message !== 'rejected' && student.message !== 'selected' && (
+                                                    <button onClick={() => handleReject(student.userInfo?.username)} className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg border border-red-200 transition-colors" title="Reject Student">
+                                                        <XCircle size={18} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* 3. SETTINGS TAB */}
+                        {activeTab === 'settings' && (
+                            <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="max-w-2xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                                    <Settings className="text-blue-600" /> Edit Profile
+                                </h3>
+                                <form onSubmit={handleProfileUpdate} className="space-y-6">
+                                    {/* (Settings form fields - same as before) */}
+                                    <div><label className="block text-sm font-semibold text-gray-700 mb-2">Monthly Fee (₹)</label><input type="number" value={profileData.fee} onChange={(e) => setProfileData({ ...profileData, fee: e.target.value })} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="block text-sm font-semibold text-gray-700 mb-2">Start Time</label><input type="time" value={profileData.Start_time} onChange={(e) => setProfileData({ ...profileData, Start_time: e.target.value })} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                                        <div><label className="block text-sm font-semibold text-gray-700 mb-2">End Time</label><input type="time" value={profileData.End_time} onChange={(e) => setProfileData({ ...profileData, End_time: e.target.value })} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                                    </div>
+                                    <div><label className="block text-sm font-semibold text-gray-700 mb-2">Location</label><input type="text" value={profileData.location} onChange={(e) => setProfileData({ ...profileData, location: e.target.value })} className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" /></div>
+                                    <button className="w-full py-4 bg-gradient-to-r from-blue-700 to-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all flex justify-center items-center gap-2">Save Changes <Save size={18} /></button>
+                                </form>
+                            </motion.div>
+                        )}
+
+                    </AnimatePresence>
+                )}
+            </main>
+
+            {/* 5. CHAT MODAL */}
+            {activeChatStudent && currentEducator && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-4xl h-[85vh] flex flex-col">
+                        <button
+                            onClick={() => setActiveChatStudent(null)}
+                            className="self-end mb-2 text-white hover:text-blue-300 font-bold flex items-center gap-2 transition-colors bg-black/40 px-3 py-1 rounded-full backdrop-blur-md"
+                        >
+                            <X size={20} /> Close Chat
                         </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="flex flex-wrap gap-4 md:gap-8 text-sm text-slate-400">
-                    <div className="flex items-center gap-3 bg-slate-950/50 px-4 py-2 rounded-lg border border-slate-800">
-                        <div className="bg-slate-800 p-1.5 rounded text-blue-400"><IndianRupee size={16}/></div>
-                        <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Fee</p>
-                            <p className="text-white font-medium">₹{stats.fee} <span className="text-slate-600 text-xs">/month</span></p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-slate-950/50 px-4 py-2 rounded-lg border border-slate-800">
-                        <div className="bg-slate-800 p-1.5 rounded text-orange-400"><MapPin size={16}/></div>
-                        <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Location</p>
-                            <p className="text-white font-medium">{stats.location || "Not Set"}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-slate-950/50 px-4 py-2 rounded-lg border border-slate-800">
-                        <div className="bg-slate-800 p-1.5 rounded text-purple-400"><Clock size={16}/></div>
-                        <div>
-                            <p className="text-xs text-slate-500 font-semibold uppercase">Schedule</p>
-                            <p className="text-white font-medium">{stats.timings || "Not Set"}</p>
+
+                        <div className="flex-1 bg-white rounded-2xl overflow-hidden shadow-2xl">
+                            <ChatRoom
+                                // Room ID: EducatorID-StudentID sorted
+                                roomId={[String(currentEducator._id), String(activeChatStudent._id)].sort().join("-")}
+                                currentUser={{
+                                    // ✅ FIX: Use simple property access because currentEducator is the User object now
+                                    name: currentEducator.fullname || currentEducator.username || "Educator",
+                                    id: currentEducator._id
+                                }}
+                                targetUser={{
+                                    name: activeChatStudent.userInfo?.fullname,
+                                    avatar: activeChatStudent.userInfo?.avatar?.url
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
             )}
+
         </div>
-
-        {/* STUDENT TABLE SECTION */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <BookOpen className="text-blue-500" size={20}/>
-                    <h2 className="text-lg font-bold text-white">Student Enquiries</h2>
-                    <span className="bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">{filteredStudents.length}</span>
-                </div>
-                
-                <div className="relative w-full md:w-auto">
-                    <Search className="absolute left-3 top-2.5 text-slate-500" size={18}/>
-                    <input 
-                      type="text" 
-                      placeholder="Search name, class or subject..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full md:w-72 bg-slate-950 border border-slate-700 text-white pl-10 pr-4 py-2 rounded-xl outline-none focus:border-blue-500 transition-colors placeholder-slate-600"
-                    />
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="bg-slate-950/50 text-slate-400 text-xs uppercase font-bold tracking-wider">
-                        <tr>
-                            <th className="px-6 py-4">Student Profile</th>
-                            <th className="px-6 py-4">Contact</th>
-                            <th className="px-6 py-4">Academic Details</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-sm">
-                        {filteredStudents.length > 0 ? (
-                            filteredStudents.map((student) => (
-                                <tr key={student._id} className="hover:bg-slate-800/50 transition-colors group">
-                                    {/* COLUMN 1: PHOTO & NAME */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            {/* Logic for Photo or Initials */}
-                                            {student.userInfo?.avatar?.url ? (
-                                                <img 
-                                                  src={student.userInfo.avatar.url} 
-                                                  alt="User" 
-                                                  className="h-10 w-10 rounded-full object-cover border border-slate-700"
-                                                />
-                                            ) : (
-                                                <div className="h-10 w-10 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center font-bold text-lg border border-blue-500/20">
-                                                    {student.userInfo?.fullname?.charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                            
-                                            <div>
-                                                <div className="font-bold text-white">{student.userInfo?.fullname || "Unknown"}</div>
-                                                <div className="text-xs text-slate-500">@{student.userInfo?.username}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* COLUMN 2: CONTACT (NEW) */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1">
-                                            {student.userInfo?.phone && (
-                                                <div className="flex items-center gap-1.5 text-slate-300">
-                                                    <Phone size={12} className="text-slate-500"/> 
-                                                    {student.userInfo.phone}
-                                                </div>
-                                            )}
-                                            {student.userInfo?.email && (
-                                                <div className="flex items-center gap-1.5 text-slate-400 text-xs">
-                                                    <Mail size={12} className="text-slate-500"/> 
-                                                    {student.userInfo.email}
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-1">
-                                                <MapPin size={12}/> {student.location || "N/A"}
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* COLUMN 3: ACADEMICS */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1.5">
-                                            <span className="text-slate-200 font-medium">{student.clas} <span className="text-slate-500 mx-1">•</span> {student.board}</span>
-                                            <span className="text-xs text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded w-fit">{student.subject}</span>
-                                        </div>
-                                    </td>
-
-                                    {/* COLUMN 4: STATUS */}
-                                    <td className="px-6 py-4">
-                                        <StatusBadge status={student.message} />
-                                    </td>
-
-                                    {/* COLUMN 5: ACTIONS */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex justify-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                                            {/* Accept Button */}
-                                            <button 
-                                              onClick={() => handleAction(student.userInfo?.username, "accept")}
-                                              title="Accept Student"
-                                              className="p-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white rounded-lg transition-all border border-emerald-500/20 hover:border-transparent"
-                                            >
-                                                <CheckCircle size={18}/>
-                                            </button>
-
-                                            {/* Reject Button */}
-                                            <button 
-                                              onClick={() => handleAction(student.userInfo?.username, "reject")}
-                                              title="Reject Student"
-                                              className="p-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg transition-all border border-amber-500/20 hover:border-transparent"
-                                            >
-                                                <XCircle size={18}/>
-                                            </button>
-
-                                            <div className="w-[1px] h-8 bg-slate-800 mx-1"></div>
-
-                                            {/* Remove Button */}
-                                            <button 
-                                              onClick={() => handleAction(student.userInfo?.username, "remove")}
-                                              title="Remove Permanently"
-                                              className="p-2 bg-slate-800 text-slate-500 hover:bg-red-600 hover:text-white rounded-lg transition-all border border-slate-700 hover:border-transparent"
-                                            >
-                                                <Trash2 size={18}/>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
-                                    <div className="flex flex-col items-center justify-center gap-2">
-                                        <Search size={32} className="opacity-20"/>
-                                        <p>No students found matching your search.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
-// --- HELPER COMPONENTS ---
-const StatCard = ({ icon, title, value, color, bg, border }) => (
-    <div className={`bg-slate-900 border ${border} p-6 rounded-2xl flex items-center justify-between hover:shadow-lg transition-shadow`}>
-        <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">{title}</p>
-            <h3 className="text-3xl font-bold text-white tracking-tight">{value}</h3>
-        </div>
-        <div className={`p-3 rounded-xl ${bg} ${color}`}>
-            {icon}
-        </div>
+// ... Helper Components ...
+const SidebarItem = ({ icon, label, active, onClick, open }) => (
+    <button onClick={onClick} className={`w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 ${active ? 'bg-blue-800 text-amber-400 shadow-md' : 'text-blue-100 hover:bg-blue-800/50'}`}>
+        {icon} {open && <span className="font-medium">{label}</span>}
+    </button>
+);
+
+const StatCard = ({ title, value, icon, color }) => (
+    <div className={`p-6 rounded-2xl border ${color} shadow-sm flex items-center justify-between`}>
+        <div><p className="text-gray-500 text-sm font-medium mb-1">{title}</p><h3 className="text-2xl font-bold text-gray-800">{value}</h3></div>
+        <div className="p-3 bg-white rounded-full shadow-sm">{icon}</div>
     </div>
 );
 
-const StatusBadge = ({ status }) => {
-    // Normalizing status string (lowercase) to avoid case sensitivity issues
-    const st = status ? status.toLowerCase() : "pending";
-    
-    let style = "bg-slate-800 text-slate-400 border-slate-700";
-    let text = "Pending";
-    let Icon = Clock;
+const Badge = ({ status }) => {
+    const styles = { selected: "bg-green-100 text-green-700 border-green-200", rejected: "bg-red-100 text-red-700 border-red-200", pending: "bg-amber-100 text-amber-700 border-amber-200" };
+    const text = status === 'selected' ? 'Enrolled' : status === 'rejected' ? 'Rejected' : 'Pending';
+    return <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${styles[status] || styles.pending}`}>{text}</span>;
+};
 
-    if (st === "selected" || st === "accepted" || st === "enrolled") {
-        style = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]";
-        text = "Enrolled";
-        Icon = CheckCircle;
-    } else if (st === "rejected") {
-        style = "bg-red-500/10 text-red-400 border-red-500/20";
-        text = "Rejected";
-        Icon = XCircle;
-    }
-
-    return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${style}`}>
-            <Icon size={12}/> {text}
-        </span>
-    );
+const getStatusColor = (status) => {
+    if (status === 'selected') return 'bg-green-500';
+    if (status === 'rejected') return 'bg-red-500';
+    return 'bg-amber-400';
 };
 
 export default EducationDashboard;
