@@ -2,28 +2,29 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-import { 
-  MapPin, User, CheckCircle, XCircle, Car, Users, 
-  Phone, Mail, MessageSquare, Calendar 
+import ChatRoom from '../Chat/ChatRoom';
+import {
+  MapPin, CheckCircle, XCircle, Car, Users,
+  Phone, MessageSquare, X, Clock
 } from "lucide-react";
 
 const TravellerAdminDashboard = () => {
   const [adminData, setAdminData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
+  const [activeTab, setActiveTab] = useState("requests");
 
-  // --- 1. FETCH DASHBOARD DATA ---
+  // Chat State
+  const [activeChatPassenger, setActiveChatPassenger] = useState(null);
+  const [currentDriver, setCurrentDriver] = useState(null);
+
+  // --- FETCH DATA ---
   const fetchAdminData = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/v1/traveller/gettraveladminbyid",
-        { withCredentials: true }
-      );
-      // Accessing the admin object safely
+      const response = await axios.get("http://localhost:8000/api/v1/traveller/gettraveladminbyid", { withCredentials: true });
       setAdminData(response.data.data.admin);
+      setCurrentDriver(response.data.data.admin);
     } catch (error) {
-      console.error("Error fetching dashboard", error);
-      toast.error("Failed to load dashboard data");
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
@@ -31,268 +32,205 @@ const TravellerAdminDashboard = () => {
 
   useEffect(() => {
     fetchAdminData();
+    const interval = setInterval(fetchAdminData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  // --- 2. REJECT PASSENGER ---
+  // --- HANDLERS ---
   const handleReject = async (travellerId) => {
-    if (!window.confirm("Remove this passenger from your list?")) return;
-    
-    setProcessingId(travellerId);
+    if (!window.confirm("Remove this passenger?")) return;
     try {
-      const response = await axios.delete(
-        `http://localhost:8000/api/v1/traveller/deleteserveuser/${travellerId}`,
-        { withCredentials: true }
-      );
+      await axios.delete(`http://localhost:8000/api/v1/traveller/deleteserveuser/${travellerId}`, { withCredentials: true });
+      toast.success("Passenger removed");
 
-      if (response.status === 200) {
-        toast.success("Passenger removed successfully.");
-        // Update local state to remove the card immediately
-        setAdminData((prev) => ({
-          ...prev,
-          AllTraveller: prev.AllTraveller.filter((t) => t._id !== travellerId),
-        }));
-      }
-    } catch (error) {
-      const msg = error.response?.data?.message || "Failed to remove passenger.";
-      toast.error(msg);
-    } finally {
-      setProcessingId(null);
+      // Update UI: Remove from list locally
+      setAdminData(prev => ({
+        ...prev,
+        AllTraveller: prev.AllTraveller.filter(t => t._id !== travellerId)
+      }));
+    } catch (e) {
+      toast.error("Failed to remove");
     }
   };
 
-  // --- 3. ACCEPT PASSENGER ---
-  const handleAccept = (travellerId) => {
-    // In a real app, this might trigger an API status update.
-    // For now, it's a visual confirmation.
-    toast.success("Passenger Accepted! Notification sent. ✅");
+  const handleAccept = async (travellerId) => {
+    try {
+      // Calls the new route we added above
+      await axios.patch(`http://localhost:8000/api/v1/traveller/accepttraveller/${travellerId}`, {}, { withCredentials: true });
+      toast.success("Passenger Accepted! Moved to My Rides.");
+
+      // Update UI: Change status locally so they move to "My Rides" tab
+      setAdminData(prev => ({
+        ...prev,
+        AllTraveller: prev.AllTraveller.map(t =>
+          t._id === travellerId ? { ...t, message: 'accepted', status: 'accepted' } : t
+        )
+      }));
+    } catch (error) {
+      console.error(error);
+      toast.error("Accept failed. Check backend route.");
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  // Filter Lists Logic
+  // Pending: Anyone NOT 'accepted'
+  const pendingPassengers = adminData?.AllTraveller?.filter(t => t.message !== 'accepted' && t.status !== 'accepted') || [];
+  // Active: Anyone WHO IS 'accepted'
+  const activePassengers = adminData?.AllTraveller?.filter(t => t.message === 'accepted' || t.status === 'accepted') || [];
+
+  if (loading) return <div className="h-screen flex justify-center items-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-10">
+    <div className="min-h-screen bg-slate-50 font-sans pb-10 relative">
       <Toaster position="top-center" />
 
-      {/* --- HEADER --- */}
-      <div className="bg-white sticky top-0 z-20 shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 md:py-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
-            {/* Driver Profile */}
-            <div className="flex items-center gap-4">
-               <div className="h-14 w-14 md:h-16 md:w-16 rounded-xl overflow-hidden border-2 border-white shadow-md relative group">
-                 <img 
-                   src={adminData?.CarPhoto || "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2"} 
-                   alt="Vehicle" 
-                   className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
-                 />
-               </div>
-               <div>
-                 <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                   My Trips <span className="hidden md:inline-block bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide border border-indigo-200">Driver Mode</span>
-                 </h1>
-                 <div className="flex items-center gap-3 text-slate-500 text-xs md:text-sm mt-1">
-                    <span className="flex items-center gap-1 font-medium bg-slate-100 px-2 py-0.5 rounded"><Car size={14}/> {adminData?.carNumber}</span>
-                    <span className="flex items-center gap-1"><MapPin size={14}/> {adminData?.location}</span>
-                 </div>
-               </div>
+      {/* HEADER */}
+      <div className="bg-white sticky top-0 z-20 shadow-sm border-b border-gray-200 px-4 py-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-300">
+              <img src={adminData?.CarPhoto || "https://ui-avatars.com/api/?name=Driver"} className="h-full w-full object-cover" alt="car" />
             </div>
+            <div>
+              <h1 className="font-bold text-slate-800">My Trips <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Driver</span></h1>
+              <p className="text-xs text-slate-500">{adminData?.carNumber}</p>
+            </div>
+          </div>
 
-            {/* Stats */}
-            <div className="flex items-center gap-4">
-                <div className="bg-white border border-gray-200 px-4 py-2 rounded-xl shadow-sm">
-                   <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Requests</p>
-                   <p className="text-xl font-bold text-indigo-600 leading-none">{adminData?.AllTraveller?.length || 0}</p>
-                </div>
-            </div>
+          {/* TABS */}
+          <div className="flex bg-slate-100 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab("requests")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "requests" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              Requests ({pendingPassengers.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("active")}
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === "active" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              My Rides ({activePassengers.length})
+            </button>
           </div>
         </div>
       </div>
 
-      {/* --- PASSENGER LIST --- */}
-      <main className="max-w-7xl mx-auto px-4 mt-8">
-        <div className="flex items-center gap-2 mb-6">
-           <Users className="text-slate-400" size={24}/>
-           <h2 className="text-xl font-bold text-slate-700">Passenger Requests</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
-            {adminData?.AllTraveller?.length > 0 ? (
-              adminData.AllTraveller.map((traveller) => (
-                <PassengerCard 
-                  key={traveller._id} 
-                  traveller={traveller} 
-                  onReject={handleReject}
-                  onAccept={handleAccept}
-                  isProcessing={processingId === traveller._id}
-                />
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-dashed border-gray-300 text-slate-400">
-                 <Car size={48} className="mb-3 opacity-20" />
-                 <p>No new ride requests.</p>
-                 <p className="text-sm">Share your ride key to get passengers.</p>
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
+      <main className="max-w-6xl mx-auto px-4 mt-6">
+        <AnimatePresence mode="wait">
+          {activeTab === "requests" ? (
+            <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingPassengers.length > 0 ? pendingPassengers.map(p => (
+                <PassengerCard key={p._id} traveller={p} type="request" onAccept={handleAccept} onReject={handleReject} />
+              )) : (
+                <div className="col-span-full py-20 flex flex-col items-center text-slate-400">
+                  <Users size={48} className="mb-2 opacity-20" />
+                  <p>No pending requests.</p>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div key="act" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activePassengers.length > 0 ? activePassengers.map(p => (
+                <PassengerCard key={p._id} traveller={p} type="active" onChat={() => setActiveChatPassenger(p)} onReject={handleReject} />
+              )) : (
+                <div className="col-span-full py-20 flex flex-col items-center text-slate-400">
+                  <Car size={48} className="mb-2 opacity-20" />
+                  <p>No active rides yet.</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
+
+      {/* CHAT MODAL */}
+      {activeChatPassenger && currentDriver && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-xl overflow-hidden shadow-2xl">
+            <div className="bg-indigo-600 p-3 flex justify-between items-center text-white">
+              <span className="font-bold flex items-center gap-2"><MessageSquare size={18} /> {activeChatPassenger.userInfo?.fullname}</span>
+              <button onClick={() => setActiveChatPassenger(null)} className="hover:bg-white/20 p-1 rounded"><X size={20} /></button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ChatRoom
+                // ✅ FIXED: We access 'userInfo._id' to get the actual Passenger User ID
+                roomId={[
+                  String(currentDriver._id),
+                  String(activeChatPassenger.userInfo?._id || activeChatPassenger.userInfo)
+                ].sort().join("-")}
+
+                currentUser={{
+                  name: "Driver",
+                  id: currentDriver._id
+                }}
+
+                targetUser={{
+                  name: activeChatPassenger.userInfo?.fullname,
+                  avatar: activeChatPassenger.userInfo?.avatar?.url
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// --- ENHANCED PASSENGER CARD COMPONENT ---
-const PassengerCard = ({ traveller, onReject, onAccept, isProcessing }) => {
-  // 1. SAFE DATA EXTRACTION
-  // Ensure we handle cases where userInfo might not be fully populated
-  const user = (traveller.userInfo && typeof traveller.userInfo === 'object') 
-    ? traveller.userInfo 
-    : {};
-
-  // 2. DEFAULT VALUES
-  const avatarUrl = user.avatar?.url || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-  const coverUrl = user.coverImage?.url || "https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=500&q=60";
-  const fullName = user.fullName || user.fullname || user.username || "Guest User";
-  const phone = user.phone || "";
-  const email = user.email || "";
-
+// --- SUB COMPONENT: PASSENGER CARD ---
+const PassengerCard = ({ traveller, type, onAccept, onReject, onChat }) => {
+  const user = traveller.userInfo || {};
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
-    >
-      
-      {/* HEADER WITH COVER IMAGE */}
-      <div className="h-24 bg-gray-200 relative">
-         <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
-         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-         {/* Status Badge */}
-         <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wider">
-            Pending
-         </div>
-      </div>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
+      <div className={`h-1.5 ${type === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
 
-      {/* USER INFO SECTION */}
-      <div className="px-5 relative">
-         {/* Overlapping Avatar */}
-         <div className="absolute -top-10 left-5">
-            <img 
-              src={avatarUrl} 
-              alt={fullName} 
-              className="w-20 h-20 rounded-2xl border-4 border-white shadow-md bg-white object-cover"
-            />
-         </div>
-         
-         {/* Name & Actions */}
-         <div className="mt-12 flex justify-between items-start">
+      <div className="p-4 flex-1">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-3">
+            <img src={user.avatar?.url || "https://ui-avatars.com/api/?name=User"} className="h-10 w-10 rounded-full bg-gray-100 object-cover border border-gray-200" alt="u" />
             <div>
-               <h3 className="text-lg font-bold text-slate-800 leading-tight">{fullName}</h3>
-               <p className="text-xs text-slate-500 font-medium">@{user.username || "traveller"}</p>
+              <h4 className="font-bold text-slate-800">{user.fullname || "Guest User"}</h4>
+              <p className="text-xs text-slate-500">@{user.username}</p>
             </div>
-            
-            {/* Contact Buttons */}
-            <div className="flex gap-2">
-               {phone ? (
-                 <>
-                   <a 
-                     href={`tel:${phone}`} 
-                     className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-600 hover:text-white transition-colors border border-green-100"
-                     title="Call User"
-                   >
-                      <Phone size={14} />
-                   </a>
-                   <a 
-                     href={`https://wa.me/91${phone}`} 
-                     target="_blank" 
-                     rel="noreferrer"
-                     className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100"
-                     title="WhatsApp"
-                   >
-                      <MessageSquare size={14} />
-                   </a>
-                 </>
-               ) : (
-                 <span className="text-[10px] text-gray-400 bg-gray-50 px-2 py-1 rounded">No Contact</span>
-               )}
-            </div>
-         </div>
+          </div>
+          {type === 'active' && <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded border border-emerald-200">ONBOARD</span>}
+        </div>
+
+        <div className="mt-4 bg-slate-50 p-3 rounded-lg text-sm border border-slate-100 space-y-1">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-xs uppercase font-bold">From</span>
+            <span className="font-semibold text-slate-700">{traveller.from}</span>
+          </div>
+          <div className="w-full h-px bg-slate-200 my-1"></div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-xs uppercase font-bold">To</span>
+            <span className="font-semibold text-slate-700">{traveller.To}</span>
+          </div>
+        </div>
       </div>
 
-      {/* JOURNEY DETAILS */}
-      <div className="p-5 space-y-4">
-         
-         {/* Route Timeline */}
-         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-             <div className="flex justify-between items-center mb-2">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Route</span>
-                <span className="text-[10px] bg-white px-2 py-0.5 rounded text-slate-500 border shadow-sm">
-                   {new Date(traveller.createdAt).toLocaleDateString()}
-                </span>
-             </div>
-             <div className="flex items-center gap-3">
-                <div className="font-semibold text-sm text-slate-700">{traveller.from}</div>
-                <div className="flex-1 h-px bg-slate-300 border-t border-dashed relative">
-                   <div className="absolute -top-1 right-0 text-slate-300">➤</div>
-                </div>
-                <div className="font-semibold text-sm text-slate-700">{traveller.To}</div>
-             </div>
-         </div>
-
-         {/* Message */}
-         {traveller.message && (
-            <div className="text-xs text-slate-600 bg-yellow-50 p-3 rounded-lg border border-yellow-100 italic flex gap-2">
-               <MessageSquare size={14} className="flex-shrink-0 text-yellow-500 mt-0.5" />
-               "{traveller.message}"
-            </div>
-         )}
-
-         {/* Email & Location */}
-         <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
-            <span className="flex items-center gap-1 truncate max-w-[140px]" title={email}>
-               <Mail size={12}/> {email || "No Email"}
-            </span>
-            <span className="flex items-center gap-1 truncate max-w-[100px]" title={traveller.location}>
-               <MapPin size={12}/> {traveller.location || "N/A"}
-            </span>
-         </div>
+      <div className="px-4 pb-4 pt-0 flex gap-2">
+        {type === 'request' ? (
+          <>
+            <button onClick={() => onReject(traveller._id)} className="flex-1 py-2 text-red-500 border border-red-200 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors">Reject</button>
+            <button onClick={() => onAccept(traveller._id)} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">Accept</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => onReject(traveller._id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all" title="Remove"><XCircle size={20} /></button>
+            {user.phone && (
+              <a href={`tel:${user.phone}`} className="flex-1 py-2 border border-green-200 text-green-600 rounded-lg text-sm font-bold flex justify-center items-center gap-2 hover:bg-green-50 transition-colors">
+                <Phone size={16} /> Call
+              </a>
+            )}
+            <button onClick={onChat} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 hover:bg-indigo-700 transition-colors shadow-md">
+              <MessageSquare size={16} /> Chat
+            </button>
+          </>
+        )}
       </div>
-
-      {/* ACTION BUTTONS */}
-      <div className="mt-auto px-5 pb-5 pt-0 flex gap-3">
-         <button
-           onClick={() => onReject(traveller._id)}
-           disabled={isProcessing}
-           className="flex-1 py-3 rounded-xl border border-red-100 text-red-500 font-bold text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
-         >
-           {isProcessing ? (
-             <div className="animate-spin w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
-           ) : (
-              <>
-                <XCircle size={18}/> Reject
-              </>
-           )}
-         </button>
-         
-         <button
-           onClick={() => onAccept(traveller._id)}
-           className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95"
-         >
-           <CheckCircle size={18}/> Accept
-         </button>
-      </div>
-
-    </motion.div>
-  );
-};
+    </div>
+  )
+}
 
 export default TravellerAdminDashboard;
