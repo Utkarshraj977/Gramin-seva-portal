@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { Education } from "../models/educationAdmin.model.js"; // Aapka Model
+import { Education } from "../models/educationAdmin.model.js"; 
 import { Student } from "../models/educationStudent.model.js"; 
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -33,7 +33,7 @@ const createDetail = asyncHandler(async (req, res) => {
     const { password, refreshToken, ...userData } = user.toObject(); 
 
     const education = await Education.create({
-        fee, // Schema me String hai, direct save karein
+        fee,
         Experience,
         category,
         Start_time,
@@ -66,8 +66,9 @@ const loginTeacher = asyncHandler(async (req, res) => {
 // 3. GET ALL STUDENTS (List Fetch)
 // ============================================================================
 const getAllStudent = asyncHandler(async (req, res) => {
+    // Populate zaroori hai taaki Hume student ka status dikhe
     const existingEducation = await Education.findOne({ "userInfo._id": req.user?._id, isEducator: true })
-        .populate("student"); // Schema me ObjectId hai, isliye .populate() mast kaam karega
+        .populate("student"); 
 
     if (!existingEducation) throw new ApiError(404, "Teacher profile not found");
 
@@ -75,40 +76,69 @@ const getAllStudent = asyncHandler(async (req, res) => {
 });
 
 // ============================================================================
-// 4. ACCEPT STUDENT (Status Update)
+// 4. ACCEPT STUDENT (Final Fix)
 // ============================================================================
 const teacherSubmit = asyncHandler(async (req, res) => {
     const { username } = req.params; 
     if (!username?.trim()) throw new ApiError(400, "Username missing");
 
+    // 1. Teacher Profile Nikalo
+    const teacher = await Education.findOne({ "userInfo._id": req.user?._id, isEducator: true });
+    if (!teacher) throw new ApiError(404, "Teacher profile not found");
+
+    // 2. Student ka Status update karo (Database me)
     const updatedStudent = await Student.findOneAndUpdate(
         { "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } },
-        { $set: { message: "selected", status: "selected" } },
+        { 
+            $set: { 
+                message: "selected", 
+                status: "selected" // ✅ Ye field ab Model me hai, to update ho jayegi
+            } 
+        },
         { new: true }
     );
 
     if (!updatedStudent) throw new ApiError(404, "Student not found");
 
-    return res.status(200).json(new ApiResponse(200, updatedStudent, "Student Accepted"));
+    // 3. Student ko Teacher ki list me add karo (Agar pehle se nahi hai)
+    // $addToSet use karenge taaki duplicate na ho
+    await Education.updateOne(
+        { _id: teacher._id },
+        { $addToSet: { student: updatedStudent._id } }
+    );
+
+    return res.status(200).json(new ApiResponse(200, updatedStudent, "Student Accepted & Enrolled"));
 });
 
 // ============================================================================
-// 5. REJECT STUDENT (Status Update)
+// 5. REJECT STUDENT (Final Fix)
 // ============================================================================
 const rejectStudent = asyncHandler(async (req, res) => {
     const { username } = req.params;
+
+    // Student ka Status update karo 'rejected' par
     const updatedStudent = await Student.findOneAndUpdate(
         { "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } },
-        { $set: { message: "rejected", status: "rejected" } },
+        { 
+            $set: { 
+                message: "rejected", 
+                status: "rejected" 
+            } 
+        },
         { new: true }
     );
 
     if (!updatedStudent) throw new ApiError(404, "Student not found");
+
+    // NOTE: Hum reject karne par student ko Teacher ki list se HATAYENGE NAHI
+    // Kyunki Teacher ko dikhna chahiye ki kisko reject kiya hai.
+    // Agar list se hatana hai to 'removeStudent' function use karein.
+
     return res.status(200).json(new ApiResponse(200, updatedStudent, "Student Rejected"));
 });
 
 // ============================================================================
-// 6. REMOVE STUDENT (Delete from List - FIXED FOR OBJECT_ID)
+// 6. REMOVE STUDENT (Delete from List - FIXED)
 // ============================================================================
 const removeStudent = asyncHandler(async (req, res) => {
     const { username } = req.params;
@@ -117,7 +147,7 @@ const removeStudent = asyncHandler(async (req, res) => {
     const studentToRemove = await Student.findOne({ "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } });
     if (!studentToRemove) throw new ApiError(404, "Student not found");
 
-    // $pull use karein (Schema me ObjectId hai, toh ye perfect kaam karega)
+    // Teacher ki list se ID hata do
     const updatedEducation = await Education.findOneAndUpdate(
         { "userInfo._id": req.user?._id, isEducator: true },
         { $pull: { student: studentToRemove._id } },
@@ -149,7 +179,7 @@ const updateTeacherProfile = asyncHandler(async (req, res) => {
 });
 
 // ============================================================================
-// 8. DASHBOARD STATS (Calculations)
+// 8. DASHBOARD STATS
 // ============================================================================
 const getDashboardStats = asyncHandler(async (req, res) => {
     const education = await Education.findOne({ "userInfo._id": req.user?._id, isEducator: true })
@@ -160,14 +190,20 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const students = education.student || [];
     const totalStudents = students.length;
     
-    // Active = Selected
-    const activeStudents = students.filter(s => s.message === "selected" || s.status === "selected").length;
+    // Active = Jinka status ya message 'selected' hai
+    const activeStudents = students.filter(s => 
+        s.message === "selected" || s.status === "selected"
+    ).length;
     
-    // Pending = Not selected & Not rejected
-    const pendingRequests = students.filter(s => s.message !== "selected" && s.message !== "rejected").length;
+    // Pending = Jo na selected hain na rejected
+    const pendingRequests = students.filter(s => 
+        s.message !== "selected" && 
+        s.status !== "selected" && 
+        s.message !== "rejected" && 
+        s.status !== "rejected"
+    ).length;
 
-    // Earnings Calculation (Fee String hai, Number me convert karein)
-    // Agar fee "500" hai to thik, agar "500/month" hai to parseInt sirf 500 uthayega
+    // Earnings Logic
     const numericFee = parseInt(education.fee) || 0; 
     const estimatedEarnings = activeStudents * numericFee;
 

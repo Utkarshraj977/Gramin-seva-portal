@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { Student } from "../models/educationStudent.model.js"; 
-import { Education } from "../models/educationAdmin.model.js"; // Teacher Model
+import { Education } from "../models/educationAdmin.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 // ==================================================
@@ -37,6 +37,7 @@ const createDetail = asyncHandler(async (req, res) => {
 // ==================================================
 // 2. LOGIN STUDENT
 // ==================================================
+
 const loginStudent = asyncHandler(async (req, res) => {
     const { StudentKey } = req.body;
     if (!StudentKey) throw new ApiError(400, "Key is required");
@@ -50,28 +51,21 @@ const loginStudent = asyncHandler(async (req, res) => {
 // ==================================================
 // 3. GET ALL TEACHERS (With Search Filters)
 // ==================================================
+
 const getAllTeacher = asyncHandler(async (req, res) => {
-    // Search Filters (Subject, Location, Fee)
-    const { subject, location, minFee, maxFee } = req.query;
     
-    const query = { isEducator: true };
-    if (subject) query.category = { $regex: subject, $options: "i" };
-    if (location) query.location = { $regex: location, $options: "i" };
-
-    let teachers = await Education.find(query)
-        .select("-EducatorKey -userInfo.password -userInfo.refreshToken"); 
-
-    // Custom Fee Filter
-    if (minFee || maxFee) {
-        teachers = teachers.filter(t => {
-            const feeVal = parseInt(t.fee) || 0;
-            const min = minFee ? parseInt(minFee) : 0;
-            const max = maxFee ? parseInt(maxFee) : 100000;
-            return feeVal >= min && feeVal <= max;
+    // 👇 YAHAN HAI ASLI DIKKAT KA SOLUTION
+    // Hum "student" field ko populate kar rahe hain taaki frontend ko status dikhe
+    const teachers = await Education.find({ isEducator: true })
+        .populate({
+            path: "student",
+            model: "Student", // Model ka naam wahi hona chahiye jo export kiya hai
+            select: "userInfo status message" // Status aur Message zaroor layein
         });
-    }
 
-    return res.status(200).json(new ApiResponse(200, teachers, "Teachers fetched successfully"));
+    return res.status(200).json(
+        new ApiResponse(200, teachers, "All Teachers fetched successfully")
+    );
 });
 
 // ==================================================
@@ -115,9 +109,6 @@ const selectTeacher = asyncHandler(async (req, res) => {
 
 // ==================================================
 // 6. STUDENT DASHBOARD (Stats & Status)
-// ==================================================
-// ==================================================
-// 6. STUDENT DASHBOARD (Updated Fix)
 // ==================================================
 const getStudentDashboard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;

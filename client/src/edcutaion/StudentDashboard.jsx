@@ -4,7 +4,8 @@ import toast, { Toaster } from "react-hot-toast";
 import { 
   BookOpen, Search, MapPin, IndianRupee, Clock, User, 
   CheckCircle, XCircle, Loader2, Send, Trash2, Edit3, X, Filter, 
-  GraduationCap, RefreshCcw, Sparkles, ShieldCheck
+  GraduationCap, RefreshCcw, Sparkles, ShieldCheck,
+  LogIn
 } from "lucide-react";
 
 const StudentDashboard = () => {
@@ -132,6 +133,9 @@ const StudentDashboard = () => {
 
   // --- 4. ADVANCED STATUS CHECKER (Logic Fix) ---
   const getApplicationStatus = (teacher) => {
+    console.log("sammmm");
+    console.log(dashboardData?.profile );
+    
       if (!dashboardData?.profile || !teacher) return { isApplied: false, status: null };
 
       // Helper: Convert to String safely
@@ -140,9 +144,15 @@ const StudentDashboard = () => {
       const myProfileId = safeStr(dashboardData.profile._id);
       const myUserId = safeStr(dashboardData.profile.userInfo?._id);
 
+      console.log("3333mm");
+        console.log(dashboardData.profile.userInfo?._id );
+        console.log(dashboardData.profile._id );
       // 1. Check inside Teacher's Students Array
-      if (teacher.students && Array.isArray(teacher.students)) {
-          const match = teacher.students.find(s => {
+      console.log(Array.isArray(teacher.student));
+      if ( Array.isArray(teacher.student)) {
+
+          const match = teacher.student.find(s => {
+            console.log(s);
               const s_pid = s.student?._id ? safeStr(s.student._id) : safeStr(s.student);
               const s_uid = s.userInfo?._id ? safeStr(s.userInfo._id) : safeStr(s.userInfo);
               return (s_pid === myProfileId || s_uid === myUserId);
