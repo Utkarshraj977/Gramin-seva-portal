@@ -45,7 +45,7 @@ export const Footer = () => {
               <ul className="space-y-4 text-sm text-slate-400">
                 {[
                   { name: "Home", href: "/home/admin" },
-                  { name: "All Services", href: "/services/user" },
+                  { name: "All cyber", href: "/cyber/user" },
                   { name: "Doctor Seva", href: "/doctor/user" },
                   { name: "Education Portal", href: "/education/user" },
                   { name: "Traveller Help", href: "/travelle/user" },
