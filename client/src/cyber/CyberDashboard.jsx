@@ -1,43 +1,42 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, CheckCircle, Clock, XCircle, MapPin, 
-  Briefcase, Calendar, Power, RefreshCw 
+  Briefcase, MessageSquare, RefreshCw, X, Zap
 } from "lucide-react";
+import ChatRoom from '../Chat/ChatRoom'; 
 
 const CyberDashboard = () => {
   const [stats, setStats] = useState({ total: 0, selected: 0, pending: 0 });
   const [users, setUsers] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Chat State
+  const [activeChatUser, setActiveChatUser] = useState(null);
 
-  // Backend URL (Change Port if needed)
   const BASE_URL = "http://localhost:8000/api/v1/cyberadmin";
-  const token = localStorage.getItem("accessToken"); // Assuming token is stored
+  const token = localStorage.getItem("accessToken"); 
 
-  // Helper for Headers
   const getHeaders = () => ({
     headers: { Authorization: `Bearer ${token}` },
     withCredentials: true
   });
 
-  // Fetch All Data
   const fetchDashboardData = async () => {
-    setLoading(true);
     try {
       const [statsRes, usersRes, profileRes] = await Promise.all([
         axios.get(`${BASE_URL}/stats`, getHeaders()),
         axios.get(`${BASE_URL}/allcyber`, getHeaders()),
         axios.get(`${BASE_URL}/profile`, getHeaders()),
       ]);
-
       setStats(statsRes.data.data);
       setUsers(usersRes.data.data);
       setProfile(profileRes.data.data);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to load dashboard data. Please login again.");
     } finally {
       setLoading(false);
     }
@@ -45,205 +44,168 @@ const CyberDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Handle Action (Accept/Reject)
-// Handle Accept/Reject
   const handleStatusUpdate = async (username, status) => {
     try {
-      // 1. Backend API Call
       await axios.post(`${BASE_URL}/cyberSumbit`, { username, status }, getHeaders());
-      
-      // 2. Success Message
-      const action = status === 'selected' ? 'Approved' : 'Rejected';
-      toast.success(`User ${username} marked as ${action}`);
-      
-      // 3. IMPORTANT: Data turant refresh karein
-      // Thoda delay dete hain taaki backend DB write complete kar le
-      setTimeout(() => {
-          fetchDashboardData();
-      }, 300);
-
+      toast.success(`User ${status}`);
+      fetchDashboardData();
     } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || "Update failed");
+      toast.error("Action failed");
     }
   };
 
-  if (loading && !profile) return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center text-blue-400">
-      <RefreshCw className="animate-spin w-10 h-10" />
-    </div>
-  );
+  // Filter Users
+  const activeClients = users.filter(u => u.message === 'selected' || u.status === 'selected');
+  const pendingClients = users.filter(u => u.message !== 'selected' && u.status !== 'selected' && u.message !== 'rejected');
+
+  if (loading && !profile) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin text-blue-600"/></div>;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-10">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-10">
       <Toaster position="top-right" />
       
-      {/* 1. Profile Header Section */}
-      <div className="bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700 p-8 shadow-xl">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-6">
-          <div className="relative group">
-            <img 
-              src={profile?.cyber_shopPic?.url || "https://via.placeholder.com/150"} 
-              alt="Shop Logo" 
-              className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 shadow-blue-500/20 shadow-lg"
-            />
-            <div className="absolute bottom-1 right-1 bg-green-500 w-5 h-5 rounded-full border-2 border-gray-800"></div>
-          </div>
-          
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-white tracking-wide">
-              {profile?.userInfo?.username?.toUpperCase() || "ADMIN"}'S SHOP
-            </h1>
-            <p className="text-gray-400 text-sm mt-1 mb-3">{profile?.userInfo?.email}</p>
-            
-            <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-gray-300">
-              <span className="flex items-center gap-1 bg-gray-700 px-3 py-1 rounded-full">
-                <MapPin size={14} className="text-blue-400" /> {profile?.location}
-              </span>
-              <span className="flex items-center gap-1 bg-gray-700 px-3 py-1 rounded-full">
-                <Briefcase size={14} className="text-purple-400" /> {profile?.Experience} Exp
-              </span>
-              <span className="flex items-center gap-1 bg-gray-700 px-3 py-1 rounded-full">
-                <Clock size={14} className="text-orange-400" /> {profile?.Start_time} - {profile?.End_time}
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center min-w-[150px]">
-            <span className="block text-gray-400 text-xs uppercase tracking-widest">Shop Status</span>
-            <span className="text-green-400 font-bold text-lg flex items-center justify-center gap-2">
-              <Power size={16} /> OPEN
-            </span>
-          </div>
+      {/* HEADER */}
+      <header className="bg-white border-b border-gray-100 px-8 py-6 shadow-sm mb-8">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+             <div>
+                <h1 className="text-2xl font-extrabold text-slate-800">{profile?.userInfo?.username}'s Admin</h1>
+                <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
+                    <span className="flex items-center gap-1"><MapPin size={12}/> {profile?.location}</span>
+                </p>
+             </div>
+             <div className="flex items-center gap-4">
+                 <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold text-sm">
+                    Open: {profile?.Start_time} - {profile?.End_time}
+                 </div>
+                 <img src={profile?.cyber_shopPic?.url} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md" alt="Me"/>
+             </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8">
-        {/* 2. Statistics Cards */}
+      <div className="max-w-7xl mx-auto px-6">
+        {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <StatCard 
-            icon={<Users size={28} />} 
-            label="Total Applicants" 
-            value={stats.total} 
-            color="bg-gradient-to-br from-blue-600 to-blue-800" 
-          />
-          <StatCard 
-            icon={<CheckCircle size={28} />} 
-            label="Approved Requests" 
-            value={stats.selected} 
-            color="bg-gradient-to-br from-emerald-600 to-emerald-800" 
-          />
-          <StatCard 
-            icon={<Clock size={28} />} 
-            label="Pending Actions" 
-            value={stats.pending} 
-            color="bg-gradient-to-br from-amber-600 to-amber-800" 
-          />
+          <StatCard icon={<Users size={24}/>} label="Total Requests" value={stats.total} color="bg-blue-600" />
+          <StatCard icon={<CheckCircle size={24}/>} label="Active Clients" value={stats.selected} color="bg-emerald-500" />
+          <StatCard icon={<Clock size={24}/>} label="Pending Actions" value={stats.pending} color="bg-amber-500" />
         </div>
 
-        {/* 3. Applicants Table */}
-        <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <Calendar size={20} className="text-blue-400" /> Recent Requests
-            </h2>
-            <button onClick={fetchDashboardData} className="text-gray-400 hover:text-white transition">
-              <RefreshCw size={18} />
-            </button>
-          </div>
+        {/* --- SECTION 1: ACTIVE CLIENTS (CHAT ENABLED) --- */}
+        {activeClients.length > 0 && (
+            <div className="mb-10">
+                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Zap className="text-emerald-500" size={20}/> Active Clients (Approved)
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {activeClients.map(client => (
+                        <div key={client._id} className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm flex flex-col hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-lg">
+                                    {client.userInfo?.username?.charAt(0)}
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-800">{client.userInfo?.username}</h3>
+                                    <p className="text-xs text-slate-500">{client.userInfo?.email}</p>
+                                </div>
+                            </div>
+                            <div className="mt-auto">
+                                <button 
+                                    onClick={() => setActiveChatUser(client)}
+                                    className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-100"
+                                >
+                                    <MessageSquare size={16}/> Chat Now
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
 
+        {/* --- SECTION 2: PENDING REQUESTS --- */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <h2 className="font-bold text-slate-800 flex items-center gap-2">
+              <Clock size={18} className="text-amber-500" /> Pending Requests
+            </h2>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-700/50 text-gray-400 text-xs uppercase tracking-wider">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 text-gray-400 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Applicant</th>
-                  <th className="px-6 py-4">Request Message</th>
-                  <th className="px-6 py-4">Requested Time</th>
-                  <th className="px-6 py-4">Location</th>
-                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4">Message</th>
                   <th className="px-6 py-4 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700 text-sm">
-                {users.length > 0 ? (
-                  users.map((user) => (
-                    <tr key={user._id} className="hover:bg-gray-700/30 transition-colors duration-200">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-white text-base">
-                          {user.userInfo?.username}
-                        </div>
-                        <div className="text-gray-500 text-xs">{user.userInfo?.email}</div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-300 max-w-xs truncate" title={user.message}>
-                        {user.message}
-                      </td>
-                      <td className="px-6 py-4 text-gray-400">
-                        {user.Start_time} - {user.End_time}
-                      </td>
-                      <td className="px-6 py-4 text-gray-400 flex items-center gap-1">
-                        <MapPin size={12}/> {user.location}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                          user.message === 'selected' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                          user.message === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                          'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                        }`}>
-                          {user.message === 'selected' ? 'APPROVED' : user.message === 'rejected' ? 'REJECTED' : 'PENDING'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-3">
-                          <button 
-                            onClick={() => handleStatusUpdate(user.userInfo.username, "selected")}
-                            className="p-2 bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white rounded-lg transition-all"
-                            title="Accept"
-                          >
-                            <CheckCircle size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleStatusUpdate(user.userInfo.username, "rejected")}
-                            className="p-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition-all"
-                            title="Reject"
-                          >
-                            <XCircle size={18} />
-                          </button>
-                        </div>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {pendingClients.length > 0 ? pendingClients.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50/50">
+                      <td className="px-6 py-4 font-medium text-slate-700">{user.userInfo?.username}</td>
+                      <td className="px-6 py-4 text-slate-500">{user.message}</td>
+                      <td className="px-6 py-4 flex justify-center gap-2">
+                        <button onClick={() => handleStatusUpdate(user.userInfo.username, "selected")} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100"><CheckCircle size={18}/></button>
+                        <button onClick={() => handleStatusUpdate(user.userInfo.username, "rejected")} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><XCircle size={18}/></button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      No requests received yet.
-                    </td>
-                  </tr>
+                )) : (
+                    <tr><td colSpan="3" className="text-center py-8 text-slate-400">No pending requests</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
+
+      {/* --- CHAT MODAL --- */}
+      {activeChatUser && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
+           <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl">
+               <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
+                   <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                            {activeChatUser.userInfo?.username?.charAt(0)}
+                        </div>
+                       <div>
+                           <h3 className="font-bold text-slate-800 leading-none">{activeChatUser.userInfo?.username}</h3>
+                           <span className="text-xs text-emerald-500 font-bold">Approved Client</span>
+                       </div>
+                   </div>
+                   <button onClick={() => setActiveChatUser(null)} className="hover:bg-slate-100 p-2 rounded-full transition"><X size={20}/></button>
+               </div>
+               
+               <div className="flex-1 overflow-hidden bg-slate-50">
+                   <ChatRoom 
+                      // Room ID: [AdminID, UserID] sorted
+                      roomId={[String(profile.userInfo?._id), String(activeChatUser.userInfo?._id)].sort().join("-")}
+                      currentUser={{ 
+                          name: profile.userInfo?.username, 
+                          id: profile.userInfo?._id 
+                      }}
+                      targetUser={{ 
+                          name: activeChatUser.userInfo?.username, 
+                          avatar: "" 
+                      }}
+                   />
+               </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
 
-// Component for Stats
 const StatCard = ({ icon, label, value, color }) => (
-  <div className={`${color} p-6 rounded-2xl shadow-lg relative overflow-hidden group`}>
-    <div className="relative z-10 flex items-center justify-between">
-      <div>
-        <p className="text-blue-100 text-sm font-medium uppercase tracking-wider">{label}</p>
-        <h3 className="text-4xl font-extrabold text-white mt-1 drop-shadow-md">{value}</h3>
-      </div>
-      <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm text-white">
-        {icon}
-      </div>
+  <div className={`${color} p-6 rounded-2xl shadow-lg relative overflow-hidden text-white`}>
+    <div className="relative z-10">
+      <p className="opacity-80 text-xs font-bold uppercase tracking-wider">{label}</p>
+      <h3 className="text-3xl font-extrabold mt-1">{value}</h3>
     </div>
-    {/* Decorative circle */}
-    <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+    <div className="absolute right-4 bottom-4 opacity-20">{icon}</div>
   </div>
 );
 

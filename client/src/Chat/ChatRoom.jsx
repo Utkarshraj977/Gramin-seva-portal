@@ -9,7 +9,7 @@ const peerConfiguration = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ]
-};
+}; 
 
 const ChatRoom = ({ roomId, currentUser, targetUser }) => {
   const [socket, setSocket] = useState(null);
