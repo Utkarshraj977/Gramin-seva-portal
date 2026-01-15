@@ -2,116 +2,182 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-// ✅ Ensure this path matches your file structure
-import ChatRoom from '../Chat/ChatRoom';
+// Note: Ensure ChatRoom is available or comment this out if not used
+import ChatRoom from '../Chat/ChatRoom'; 
 import {
   Search, Filter, MapPin, Phone, User, CheckCircle,
-  Car, Loader2, Zap, MessageSquare, X, Clock, Navigation,
-  XCircle, AlertCircle
+  Car, Loader2, Zap, MessageSquare, X, Navigation,
+  XCircle
 } from "lucide-react";
 
+// --- HELPER: Safe ID Extraction ---
+const getUserId = (userOrId) => {
+  if (!userOrId) return "";
+  return typeof userOrId === "object" ? String(userOrId._id) : String(userOrId);
+};
+
 const TravelUserDashboard = () => {
+  // --- STATE ---
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [travellerProfile, setTravellerProfile] = useState(null); // Stores the full traveller doc
 
-  // Active Ride State
+  // Active Ride & Chat
   const [activeRide, setActiveRide] = useState(null);
   const [activeChatDriver, setActiveChatDriver] = useState(null);
 
-  // Filters & Search
-  const [filterType, setFilterType] = useState("All");
+  // Filters
   const [filterCategory, setFilterCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Loading states for specific actions
+  // Loading States
   const [joiningId, setJoiningId] = useState(null);
   const [cancelingId, setCancelingId] = useState(null);
 
-  // --- 1. FETCH DATA & CHECK STATUS ---
+  // --- 1. FETCH DATA ---
   const fetchData = async () => {
     try {
-      // A. Get Current User (Passenger)
-      const userRes = await axios.get('http://localhost:8000/api/v1/users/current-user', { withCredentials: true });
-      const user = userRes.data.data;
-      setCurrentUser(user);
+      // A. Get Current Traveller User
+      // matches route: router.route("/user").get(verifyJWT, travelleruser)
+      const userRes = await axios.get('http://localhost:8000/api/v1/traveller/user', { withCredentials: true });
+      
+      const fullProfile = userRes.data.data;
+      setTravellerProfile(fullProfile);
+      
+      // We set currentUser to the nested userInfo object so ID matching works with admin lists
+      if (fullProfile && fullProfile.userInfo) {
+          setCurrentUser(fullProfile.userInfo);
+      }
 
-      // B. Get All Drivers (Admins)
-      let url = "http://localhost:8000/api/v1/traveller/allTravelAdmin";
-      // Apply Filters
-      if (filterCategory !== "All") url = `http://localhost:8000/api/v1/traveller/gettraveladminCat/${filterCategory}`;
-      else if (filterType !== "All") url = `http://localhost:8000/api/v1/traveller/gettraveladminTyp/${filterType}`;
-
+      // B. Get Drivers (Admins)
+      // matches route: /api/v1/admin/all-travelling-admin (Assuming this exists from your admin controller)
+      // If you are using the filter route, ensure that controller exists too.
+      let url = "http://localhost:8000/api/v1/traveller/allTravelAdmin"; 
+       
       const response = await axios.get(url, { withCredentials: true });
+      // Handle different response structures (pagination vs array)
       const driversList = response.data.data.Alladmin || response.data.data || [];
-      setAdmins(Array.isArray(driversList) ? driversList : []);
+      const validDrivers = Array.isArray(driversList) ? driversList : [];
+      
+      // Apply Client-side category filter if backend filter isn't set up yet
+      const filteredDrivers = filterCategory === "All" 
+        ? validDrivers 
+        : validDrivers.filter(d => d.category === filterCategory || d.CarDetails?.category === filterCategory);
 
-      // C. Find the driver who accepted ME
-      const myAcceptedDriver = driversList.find(driver => {
-        if (!driver.AllTraveller || !Array.isArray(driver.AllTraveller)) return false;
+      setAdmins(filteredDrivers);
 
-        const myRecord = driver.AllTraveller.find(t => {
-          const t_uid = t.userInfo?._id ? String(t.userInfo._id) : String(t.userInfo);
-          return t_uid === String(user._id);
-        });
+      // C. Find Active Ride
+      // Priority 1: Use the 'AllRide' field directly from the traveller profile if populated
+      if (fullProfile.AllRide && typeof fullProfile.AllRide === 'object') {
+          setActiveRide(fullProfile.AllRide);
+      } 
+      // Priority 2: Scan the drivers list (Fallback)
+      else {
+          const myAcceptedDriver = validDrivers.find(driver => {
+            if (!driver.AllTraveller) return false;
+            const myRecord = driver.AllTraveller.find(t => 
+              getUserId(t.userInfo) === String(fullProfile.userInfo._id)
+            );
+            // Check for accepted status
+            return myRecord && (myRecord.message === 'accepted' || myRecord.status === 'accepted' || fullProfile.AllRide === driver._id);
+          });
 
-        return myRecord && (myRecord.message === 'accepted' || myRecord.status === 'accepted');
-      });
-
-      setActiveRide(myAcceptedDriver || null);
+          if (myAcceptedDriver) {
+              setActiveRide(myAcceptedDriver);
+          } else {
+              if (!cancelingId) setActiveRide(null);
+          }
+      }
 
     } catch (error) {
-      console.error("Dashboard Sync Error:", error);
+      console.error("Sync Error:", error);
+      // If 404/401, likely not logged in or registered
+      if (error.response?.status === 401 || error.response?.status === 404) {
+         // handle redirect if needed
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Poll for updates
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 5000); // Polling every 5s
     return () => clearInterval(interval);
-  }, [filterCategory, filterType]);
+  }, [filterCategory]);
 
   // --- 2. JOIN RIDE HANDLER ---
   const handleJoinDriver = async (adminId) => {
     setJoiningId(adminId);
+    
+    // OPTIMISTIC UPDATE
+    setAdmins(prev => prev.map(admin => {
+        if (admin._id === adminId) {
+            return {
+                ...admin,
+                AllTraveller: [
+                    ...(admin.AllTraveller || []),
+                    { userInfo: currentUser, message: 'pending', status: 'pending' }
+                ]
+            };
+        }
+        return admin;
+    }));
+
     try {
-      await axios.patch(`http://localhost:8000/api/v1/traveller/setuserintoadmin/${adminId}`, {}, { withCredentials: true });
-      toast.success("Request Sent! Waiting for driver approval.");
-      fetchData();
+      // FIXED: Uses POST and matches router.route("/setuserintoadmin/:id")
+      await axios.post(`http://localhost:8000/api/v1/traveller/setuserintoadmin/${adminId}`, {}, { withCredentials: true });
+      toast.success("Request Sent!");
+      fetchData(); // Refresh to ensure data consistency
     } catch (error) {
-      const msg = error.response?.data?.message || "Failed to join";
-      toast.error(msg);
+      toast.error(error.response?.data?.message || "Failed to join");
+      fetchData(); // Revert on error
     } finally {
       setJoiningId(null);
     }
   };
 
-  // --- 3. CANCEL RIDE/REQUEST HANDLER ---
+  // --- 3. CANCEL RIDE HANDLER ---
   const handleCancelRide = async (adminId) => {
-    if (!window.confirm("Are you sure you want to cancel this ride/request?")) return;
+    if (!window.confirm("Are you sure you want to cancel?")) return;
 
     setCancelingId(adminId);
+
+    // 1. INSTANT LOCAL UPDATE
+    setAdmins(prev => prev.map(admin => {
+        if (admin._id === adminId) {
+            return {
+                ...admin,
+                AllTraveller: (admin.AllTraveller || []).filter(t => 
+                    getUserId(t.userInfo) !== String(currentUser._id)
+                )
+            };
+        }
+        return admin;
+    }));
+
+    // 2. CLEAR ACTIVE RIDE
+    if (activeRide?._id === adminId) {
+        setActiveRide(null);
+    }
+
     try {
-      // NOTE: You need to add this endpoint to your backend (User removing themselves)
-      await axios.patch(`http://localhost:8000/api/v1/traveller/leave-admin/${adminId}`, {}, { withCredentials: true });
-      toast.success("Ride cancelled successfully");
-      setActiveRide(null); // Clear active ride locally immediately
-      fetchData();
+      // FIXED: Uses POST and matches router.route("/cancelride")
+      // We don't need ID in URL because backend finds ride via User Token
+      await axios.post(`http://localhost:8000/api/v1/traveller/cancelride`, {}, { withCredentials: true });
+      toast.success("Ride cancelled");
+      fetchData(); // Ensure backend state is synced
     } catch (error) {
-      // Fallback: If specific endpoint doesn't exist, try the delete endpoint (though that is usually for admins)
-      toast.error(error.response?.data?.message || "Failed to cancel ride");
+      console.error(error);
+      toast.error(error.response?.data?.message || "Cancellation failed");
+      fetchData();
     } finally {
       setCancelingId(null);
     }
   };
 
-  const handleStartChat = (driver) => {
-    setActiveChatDriver(driver);
-  };
-
+  // Filter Logic for Search Bar
   const displayedAdmins = admins.filter((admin) => {
     if (!searchQuery) return true;
     return admin.userInfo?.fullname?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -138,15 +204,19 @@ const TravelUserDashboard = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm">
-            {currentUser?.fullname?.charAt(0) || <User size={20} />}
+          <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shadow-sm overflow-hidden">
+            {currentUser?.avatar?.url ? (
+                <img src={currentUser.avatar.url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+                currentUser?.fullname?.charAt(0) || <User size={20} />
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 mt-6">
 
-        {/* --- SECTION 1: MY ACCEPTED RIDE (The "Section" requested) --- */}
+        {/* --- SECTION 1: ACTIVE RIDE (ACCEPTED ONLY) --- */}
         <AnimatePresence>
           {activeRide && (
             <motion.div
@@ -161,12 +231,7 @@ const TravelUserDashboard = () => {
               </div>
 
               <div className="bg-white rounded-[24px] p-6 shadow-xl shadow-emerald-100 border border-emerald-100 relative overflow-hidden">
-                {/* Decorative Background */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full -mr-16 -mt-16 z-0 mix-blend-multiply opacity-50"></div>
-
-                <div className="relative z-10">
-                  <div className="flex flex-col md:flex-row justify-between items-start gap-6">
-                    {/* Driver Info */}
+                <div className="flex flex-col md:flex-row justify-between items-start gap-6 relative z-10">
                     <div className="flex gap-5">
                       <div className="h-24 w-24 rounded-2xl bg-gray-200 overflow-hidden border-4 border-white shadow-md flex-shrink-0">
                         <img src={activeRide.userInfo?.avatar?.url || activeRide.CarPhoto} className="h-full w-full object-cover" alt="Driver" />
@@ -186,11 +251,10 @@ const TravelUserDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Actions Panel */}
                     <div className="flex flex-col gap-3 w-full md:w-auto min-w-[200px]">
                       <button
-                        onClick={() => handleStartChat(activeRide)}
-                        className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        onClick={() => setActiveChatDriver(activeRide)}
+                        className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all"
                       >
                         <MessageSquare size={18} /> Message Driver
                       </button>
@@ -211,32 +275,22 @@ const TravelUserDashboard = () => {
                         </button>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Trip Details */}
-                  <div className="mt-8 pt-6 border-t border-dashed border-slate-200 flex flex-col sm:flex-row gap-8">
+                </div>
+                <div className="mt-8 pt-6 border-t border-dashed border-slate-200 flex flex-col sm:flex-row gap-8 relative z-10">
                     <div className="flex items-start gap-3">
                       <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
                       <div>
                         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Pickup Location</p>
-                        <p className="font-semibold text-slate-800 text-lg leading-tight">{activeRide.location}</p>
+                        <p className="font-semibold text-slate-800 text-lg leading-tight">{activeRide.location || "Location not set"}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-3">
-                      <div className="p-2.5 bg-orange-50 text-orange-600 rounded-xl"><Zap size={20} /></div>
-                      <div>
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Status</p>
-                        <p className="font-semibold text-slate-800 text-lg leading-tight">Driver is on the way</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* --- SECTION 2: FILTERS --- */}
+        {/* --- FILTERS --- */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           <span className="text-slate-400 mr-2 flex items-center gap-1 font-medium text-sm"><Filter size={16} /> Filter:</span>
           {["All", "Taxi Car", "Auto Rickshaw", "Bus", "Jeep"].map(cat => (
@@ -250,7 +304,7 @@ const TravelUserDashboard = () => {
           ))}
         </div>
 
-        {/* --- SECTION 3: AVAILABLE DRIVERS LIST --- */}
+        {/* --- DRIVERS LIST --- */}
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>
         ) : (
@@ -265,8 +319,7 @@ const TravelUserDashboard = () => {
                   isJoining={joiningId === admin._id}
                   isCanceling={cancelingId === admin._id}
                   currentUser={currentUser}
-                  onChat={() => handleStartChat(admin)}
-                  hasActiveRide={!!activeRide}
+                  hasActiveRide={!!activeRide} 
                 />
               ))}
             </AnimatePresence>
@@ -274,11 +327,10 @@ const TravelUserDashboard = () => {
         )}
       </main>
 
-      {/* --- 4. CHAT MODAL --- */}
+      {/* --- CHAT MODAL --- */}
       {activeChatDriver && currentUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl ring-1 ring-slate-900/5">
-            {/* Chat Header */}
+          <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl">
             <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -292,25 +344,17 @@ const TravelUserDashboard = () => {
               </div>
               <button onClick={() => setActiveChatDriver(null)} className="hover:bg-slate-100 p-2 rounded-full transition text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
-
             <div className="flex-1 overflow-hidden bg-slate-50 relative">
-              <ChatRoom
-                // ✅ MATCHING LOGIC: Admin ID + Current User ID
-                roomId={[
-                  String(activeChatDriver._id),
-                  String(currentUser._id)
-                ].sort().join("-")}
-
-                currentUser={{
-                  name: currentUser.fullname || "Passenger",
-                  id: currentUser._id
-                }}
-
-                targetUser={{
-                  name: activeChatDriver.userInfo?.fullname,
-                  avatar: activeChatDriver.userInfo?.avatar?.url
-                }}
-              />
+               {/* Ensure ChatRoom exists in your project */}
+               {ChatRoom ? (
+                  <ChatRoom
+                    roomId={[getUserId(activeChatDriver), getUserId(currentUser)].sort().join("-")}
+                    currentUser={{ name: currentUser.fullname || "Passenger", id: currentUser._id }}
+                    targetUser={{ name: activeChatDriver.userInfo?.fullname, avatar: activeChatDriver.userInfo?.avatar?.url }}
+                  />
+               ) : (
+                   <div className="flex items-center justify-center h-full text-gray-500">Chat Module Not Loaded</div>
+               )}
             </div>
           </div>
         </div>
@@ -319,30 +363,29 @@ const TravelUserDashboard = () => {
   );
 };
 
-// --- DRIVER CARD COMPONENT ---
-const DriverCard = ({ admin, onJoin, onCancel, isJoining, isCanceling, currentUser, onChat, hasActiveRide }) => {
+// --- SUB COMPONENT: DRIVER CARD ---
+const DriverCard = ({ admin, onJoin, onCancel, isJoining, isCanceling, currentUser, hasActiveRide }) => {
   let isRequested = false;
   let isAccepted = false;
 
+  // 1. Check relationship using safe ID helper
   if (admin.AllTraveller && currentUser) {
-    const record = admin.AllTraveller.find(t => {
-      const t_id = t.userInfo?._id ? String(t.userInfo._id) : String(t.userInfo);
-      return t_id === String(currentUser._id);
-    });
+    const record = admin.AllTraveller.find(t => 
+      getUserId(t.userInfo) === String(currentUser._id)
+    );
+
     if (record) {
-      isRequested = true;
+      isRequested = true; // "Pending" or "Accepted"
       isAccepted = record.message === 'accepted' || record.status === 'accepted';
     }
-  }
+  } 
 
-  // If accepted, hide this card from the main list (since it's in the top section) 
-  // OR show it with "Joined" status. Let's hide it to reduce clutter if preferred, 
-  // but for clarity we'll show it as "Active".
+  // 2. Hide Accepted Drivers from List (They are in top section)
   if (isAccepted) return null;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-lg hover:border-indigo-100 transition-all flex flex-col h-full group">
-
+      
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <img src={admin.userInfo?.avatar?.url || "https://ui-avatars.com/api/?name=D"} className="h-12 w-12 rounded-xl bg-gray-100 object-cover border border-gray-200" alt="dr" />
@@ -361,6 +404,7 @@ const DriverCard = ({ admin, onJoin, onCancel, isJoining, isCanceling, currentUs
 
       <div className="mt-auto">
         {isRequested ? (
+          // STATE: Requested (Pending) -> Show Cancel
           <button
             onClick={() => onCancel(admin._id)}
             disabled={isCanceling}
@@ -370,12 +414,17 @@ const DriverCard = ({ admin, onJoin, onCancel, isJoining, isCanceling, currentUs
             Cancel Request
           </button>
         ) : (
+          // STATE: Not requested -> Show Join OR Disable
           <button
             onClick={() => !hasActiveRide && onJoin(admin._id)}
             disabled={isJoining || hasActiveRide}
-            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${hasActiveRide ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-200 hover:shadow-indigo-200'}`}
+            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+              hasActiveRide 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+                : 'bg-slate-900 text-white hover:bg-indigo-600 shadow-lg shadow-slate-200 hover:shadow-indigo-200'
+            }`}
           >
-            {isJoining ? <Loader2 className="animate-spin" size={16} /> : hasActiveRide ? "Ride in Progress" : "Join Ride"}
+            {isJoining ? <Loader2 className="animate-spin" size={16} /> : hasActiveRide ? "Already in a Ride" : "Join Ride"}
           </button>
         )}
       </div>

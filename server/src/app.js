@@ -43,7 +43,7 @@ import cyberadmin from './routes/cyber.routes.js'
 import cyberuser from './routes/cyberUser.routes.js'
 import educationStudentRouter from "./routes/student.routes.js";
 // --- Route Declarations ---
-app.use("/api/v1/users", userRouter)
+app.use("/api/v1/users", userRouter) 
 app.use("/api/v1/doctor", doctorRouter)
 app.use("/api/v1/patient", patientRouter)
 app.use("/api/v1/education", educationRouter)
@@ -51,7 +51,7 @@ app.use("/api/v1/education/student", educationStudentRouter);
 app.use("/api/v1/ComplaintAdmin", ComplaintAdmin)
 app.use("/api/v1/complaintuser", ComplaintUser)
 app.use("/api/v1/traveller", travelleradmin)
-app.use("/api/v1/traveller", travelleruser)
+app.use("/api/v1/traveller", travelleruser) 
 app.use("/api/v1/cyberadmin", cyberadmin)
 app.use("/api/v1/cyberuser", cyberuser) 
 

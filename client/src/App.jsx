@@ -59,7 +59,8 @@ import StudentDashboard from "./edcutaion/StudentDashboard";
 import EducationDashboard from "./edcutaion/EducationDashboard";
 import CyberDashboard from "./cyber/CyberDashboard";
 import CyberUserDashboard from "./cyber/CyberUserDashboard";
-
+import ComplaintAdminDashboard from "./complaint/ComplaintAdminDashboard";
+import ComplaintUserDashboard from "./complaint/ComplaintUserDashboard";
 
 // Router configuration
 
@@ -135,7 +136,7 @@ const router = createBrowserRouter([
       { path: "admin", element: <ComplaintAdmin />, },
       { path: "admin/register", element: <ComplaintAdminRegister />,},
       { path: "admin/login", element: <ComplaintAdminLogin />,},
-      { path: "admin/dashboard", element: <TravelUserDashboard />,},
+      { path: "admin/dashboard", element: <ComplaintAdminDashboard />,},
     ],
   },
   {
@@ -217,7 +218,7 @@ const router = createBrowserRouter([
       { path: "user", element: <ComplaintUser />, },
       { path: "user/register", element: <ComplaintUserRegister />,},
       { path: "user/login", element: <ComplaintUserLogin />,},
-      { path: "user/dashboard", element: <TravelUserDashboard />,},
+      { path: "user/dashboard", element: <ComplaintUserDashboard />,},
     ],
   },
   {

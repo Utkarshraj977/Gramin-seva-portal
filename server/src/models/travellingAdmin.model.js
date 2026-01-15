@@ -18,7 +18,6 @@ const travellingAdminSchema = new Schema(
             type:String,
             required: true,
         },
-
         isTravellingAdmin:{
             type:Boolean,
             required: true,

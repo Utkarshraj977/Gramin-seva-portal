@@ -158,6 +158,66 @@ const getuserbyid = asyncHandler(async (req, res) => {
     new ApiResponse(200, updatedComplaint, "complaint find successfully")
   );
 });
+const getDashboardData = asyncHandler(async (req, res) => {
+    const user = req.user?._id;
+    if (!user) throw new ApiError(404, "User not found");
 
+    // We find the admin and populate the 'AllComplaints' array
+    // Assuming 'AllComplaints' stores objects with { userInfo: UserID, message: String, status: String }
+    const admin = await ComplaintAdmin.findOne({ userInfo: user })
+        .populate("userInfo", "username fullname email avatar phone")
+        .populate({
+            path: "AllComplaints.userInfo", // Populate the user details inside the complaints array
+            select: "username fullname email avatar phone" 
+        });
 
-export { adminregister,adminlogin,getAllcomplaint,getbyusername,getuserbyid}
+    if (!admin) {
+        throw new ApiError(404, "Admin profile not found");
+    }
+
+    // Calculate basic stats for the frontend
+    const total = admin.AllComplaints?.length || 0;
+    const active = admin.AllComplaints?.filter(c => c.status === 'accepted').length || 0;
+    const pending = admin.AllComplaints?.filter(c => c.status === 'pending').length || 0;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200, 
+            { admin, stats: { total, active, pending } }, 
+            "Dashboard data fetched successfully"
+        )
+    );
+});
+
+// 2. UPDATE COMPLAINT STATUS (Accept/Reject)
+const updateComplaintStatus = asyncHandler(async (req, res) => {
+    const { complaintId, status } = req.body; // complaintId is the _id of the sub-document in the array
+    const user = req.user._id;
+
+    if (!complaintId || !status) throw new ApiError(400, "Complaint ID and Status are required");
+
+    const admin = await ComplaintAdmin.findOneAndUpdate(
+        { 
+            userInfo: user, 
+            "AllComplaints._id": new mongoose.Types.ObjectId(complaintId) 
+        },
+        {
+            $set: {
+                "AllComplaints.$.status": status,
+                // Optional: Update message if needed, or keep original
+            }
+        },
+        { new: true }
+    ).populate("AllComplaints.userInfo", "username fullname email avatar");
+
+    if (!admin) throw new ApiError(404, "Complaint not found");
+
+    return res.status(200).json(
+        new ApiResponse(200, admin, `Complaint marked as ${status}`)
+    );
+});
+
+export { adminregister,adminlogin,getAllcomplaint,getbyusername,getuserbyid,getDashboardData, 
+    updateComplaintStatus}
+
+   

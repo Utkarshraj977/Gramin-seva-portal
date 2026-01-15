@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { TravellingAdmin } from "../models/travellingAdmin.model.js";
 import { User } from "../models/user.model.js";
+import { TravellingUser } from "../models/travellingUser.model.js"; // Added import
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
 
@@ -10,27 +11,22 @@ import mongoose from "mongoose";
 const travellingAdminReg = asyncHandler(async (req, res) => {
     const { carNumber, category, TravellingAdminKey, location, Type } = req.body;
 
-    // Validate fields
     if ([carNumber, category, TravellingAdminKey, location, Type].some(
         (field) => typeof field !== "string" || field.trim() === ""
     )) {
         throw new ApiError(400, "All fields are required");
     }
 
-    // Find user
     const user = await User.findById(req.user?._id);
     if (!user) throw new ApiError(404, "User not found");
 
-    // Validate TravellingAdminKey
     if (!/^\d{6}$/.test(TravellingAdminKey)) {
         throw new ApiError(400, "TravellingAdminKey must be exactly 6 digits (numbers only)");
     }
 
-    // Check if already registered
     const existedUser = await TravellingAdmin.findOne({ userInfo: user._id });
     if (existedUser) throw new ApiError(409, "Traveller Admin is already registered");
 
-    // File uploads
     const Driver_License = req.files?.Driver_License?.[0]?.path;
     const CarPhoto = req.files?.CarPhoto?.[0]?.path;
     if (!CarPhoto) throw new ApiError(400, "Car photo is required");
@@ -44,7 +40,6 @@ const travellingAdminReg = asyncHandler(async (req, res) => {
     const upload = await uploadOnCloudinary(CarPhoto);
     if (!upload) throw new ApiError(400, "Car photo upload failed");
 
-    // Create Traveller Admin
     let createdTraveller = await TravellingAdmin.create({
         userInfo: user._id,
         carNumber,
@@ -74,8 +69,8 @@ const travellingAdminReg = asyncHandler(async (req, res) => {
 // Traveller Admin login
 const travellerAdminLogin = asyncHandler(async (req, res) => {
     const { TravellingAdminKey } = req.body;
-
     const user = req.user?._id;
+
     if (!user) throw new ApiError(404, "user not found");
     if (!TravellingAdminKey) throw new ApiError(401, "Trevelling Admin Key is Required");
 
@@ -86,15 +81,9 @@ const travellerAdminLogin = asyncHandler(async (req, res) => {
     const istravellervalid = await travellerAdmin.isTravellerKeyCorrect(TravellingAdminKey);
     if (!istravellervalid) throw new ApiError(401, "unauthorized access");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { travellerAdmin },
-                "Traveller admin login succesfully"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(200, { travellerAdmin }, "Traveller admin login succesfully")
+    );
 });
 
 // Get all Traveller Admin 
@@ -105,18 +94,12 @@ const allTravellerAdmin = asyncHandler(async (req, res) => {
         throw new ApiError(404, "No Traveller Admin Found");
     }
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { Alladmin },
-                "All Traveller Admin Fetched Succesfully"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(200, { Alladmin }, "All Traveller Admin Fetched Succesfully")
+    );
 });
 
-// Get TravellerAdmin By id (Modified to include populated passenger info)
+// Get TravellerAdmin By id
 const gettravelleradmin = asyncHandler(async (req, res) => {
     const user = req.user._id;
     if (!user) throw new ApiError(404, "User not found");
@@ -131,18 +114,12 @@ const gettravelleradmin = asyncHandler(async (req, res) => {
 
     if (!admin) throw new ApiError(404, "Traveller Admin not found");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { admin },
-                "Traveller data fetched with full passenger details"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(200, { admin }, "Traveller data fetched with full passenger details")
+    );
 });
 
-// Get TravellerAdmin by Params Id or params username
+// Get TravellerAdmin by Params
 const getTravellerAdminByParams = asyncHandler(async (req, res) => {
     const { param } = req.params;
     const para = param.trim();
@@ -162,21 +139,14 @@ const getTravellerAdminByParams = asyncHandler(async (req, res) => {
 
     if (!travelleradmin) throw new ApiError(404, "Traveller Admin not found");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { travelleradmin },
-                "Traveller Admin data is fetched"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(200, { travelleradmin }, "Traveller Admin data is fetched")
+    );
 });
 
-// filter By Category
+// Filter By Category
 const getalltravellorAdbycategory = asyncHandler(async (req, res) => {
     const { categ } = req.params;
-
     if (!categ) throw new ApiError(400, "category is required for filter");
 
     const travellerAdmins = await TravellingAdmin.find({ category: categ })
@@ -192,72 +162,74 @@ const getalltravellorAdbycategory = asyncHandler(async (req, res) => {
     );
 });
 
-// filter By Type
+// Filter By Type
 const getalltravellorAdbytype = asyncHandler(async (req, res) => {
     const { type } = req.params;
     const para = type.trim();
     if (!para) throw new ApiError(401, "Type is required for filter");
+
     const travellerAdmin = await TravellingAdmin.find({ Type: para }).select("-TravellingAdminKey")
         .populate("userInfo", "username fullname coverImage email phone avatar");
     if (!travellerAdmin) throw new ApiError(401, "traveller admin with this type not exist");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, travellerAdmin, "All Traveller Admin is fetched")
-        );
+    return res.status(200).json(
+        new ApiResponse(200, travellerAdmin, "All Traveller Admin is fetched")
+    );
 });
 
-// Delete (Reject) traveller
+// ✅ REJECT/REMOVE USER (Fixes 500/400 Error)
 const deleteServetravelleruser = asyncHandler(async (req, res) => {
     const { param } = req.params;
-    const para = param.trim();
-    const user = req.user._id;
+    const passengerUserId = param.trim();
+    const adminUserId = req.user._id;
 
-    if (!para) throw new ApiError(400, "traveller user id is required for delete the user");
-    if (!user) throw new ApiError(400, "user id not found");
+    if (!passengerUserId || passengerUserId === 'undefined') {
+        throw new ApiError(400, "Invalid Passenger User ID provided");
+    }
 
-    const travelleradmin = await TravellingAdmin.findOneAndUpdate(
+    // 1. Find Admin Profile
+    const adminProfile = await TravellingAdmin.findOne({ userInfo: adminUserId });
+    if (!adminProfile) throw new ApiError(404, "Admin profile not found");
+
+    // 2. Remove from Admin's List using 'userInfo' match
+    const updatedAdmin = await TravellingAdmin.findByIdAndUpdate(
+        adminProfile._id,
         {
-            userInfo: user,
-            "AllTraveller._id": new mongoose.Types.ObjectId(para)
+            $pull: { AllTraveller: { userInfo: passengerUserId } }
         },
-        {
-            $pull: { AllTraveller: { _id: new mongoose.Types.ObjectId(para) } }
-        },
-        {
-            new: true
-        }
-    )
-    .select("-TravellingAdminKey")
-    .populate("userInfo", "username fullname coverImage email phone avatar");
+        { new: true }
+    ).populate("userInfo", "username fullname coverImage email phone avatar");
 
-    if (!travelleradmin) throw new ApiError(404, "traveller Admin not found or traveller user not associated");
+    if (!updatedAdmin) throw new ApiError(404, "Admin not found or update failed");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                travelleradmin,
-                "traveller updated succesfully"
-            )
-        );
+    // 3. Clear the passenger's AllRide status
+    await TravellingUser.findOneAndUpdate(
+        { userInfo: passengerUserId },
+        { $set: { AllRide: null } }
+    );
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedAdmin, "Passenger removed successfully")
+    );
 });
 
-// ✅ ACCEPT TRAVELLER LOGIC
+// ✅ ACCEPT TRAVELLER LOGIC (Fixes 500/400 Error)
 const acceptTraveller = asyncHandler(async (req, res) => {
     const { travellerId } = req.params;
-    const user = req.user._id;
+    const adminUserId = req.user._id;
 
-    if (!travellerId) throw new ApiError(400, "Traveller ID is required");
+    if (!travellerId || travellerId === 'undefined') {
+        throw new ApiError(400, "Traveller User ID is required");
+    }
 
-    // Update the specific element in the AllTraveller array
-    // We set 'message' and 'status' to 'accepted'
+    const adminProfile = await TravellingAdmin.findOne({ userInfo: adminUserId });
+    if (!adminProfile) throw new ApiError(404, "Admin profile not found");
+
+    // Update status looking for 'userInfo' match in array
     const travelleradmin = await TravellingAdmin.findOneAndUpdate(
         {
-            userInfo: user,
-            "AllTraveller._id": new mongoose.Types.ObjectId(travellerId)
+            _id: adminProfile._id,
+            "AllTraveller.userInfo": travellerId
         },
         {
             $set: {
@@ -268,13 +240,11 @@ const acceptTraveller = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    if (!travelleradmin) throw new ApiError(404, "Traveller not found in your requests");
+    if (!travelleradmin) throw new ApiError(404, "Passenger not found in your list");
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(200, travelleradmin, "Traveller accepted successfully")
-        );
+    return res.status(200).json(
+        new ApiResponse(200, travelleradmin, "Traveller accepted successfully")
+    );
 });
 
 // User leaves an Admin (Cancel request/ride)
@@ -284,13 +254,10 @@ const leaveAdmin = asyncHandler(async (req, res) => {
 
     if (!user) throw new ApiError(404, "User not found");
     
-    // Find admin and pull the current user from their list
     const admin = await TravellingAdmin.findByIdAndUpdate(
         adminId,
         { 
-            $pull: { 
-                AllTraveller: { userInfo: user } 
-            } 
+            $pull: { AllTraveller: { userInfo: user } } 
         },
         { new: true }
     );
@@ -302,8 +269,6 @@ const leaveAdmin = asyncHandler(async (req, res) => {
     );
 });
 
-
-
 export { 
     leaveAdmin,
     travellingAdminReg, 
@@ -314,5 +279,5 @@ export {
     getalltravellorAdbycategory, 
     getTravellerAdminByParams, 
     gettravelleradmin,
-    acceptTraveller // Export the new function
+    acceptTraveller 
 };

@@ -1,53 +1,40 @@
-import mongoose, {Schema} from "mongoose";
-import bcrypt from "bcrypt"
+import mongoose, { Schema } from "mongoose";
+import bcrypt from "bcrypt";
+
 const travellingUserSchema = new Schema(
     {
-        from:{
-            type:String,
-            required: true,
-        },
-        To:{   
-            type:String,
-            required: true,
-        },
-
-        isTravellingUser:{
-            type:Boolean,
-            required: true,
-        },
-
-        userInfo:{
+        userInfo: {
             type: Schema.Types.ObjectId,
             ref: "User"
         },
-        TravellingUserKey:{
-            type:String,
-            required:true
+        TravellingUserKey: {
+            type: String,
+            required: true
         },
-         location:{
-            type:String,
-            required:false
+        location: {
+            type: String,
+            required: false // Changed to optional based on your code
         },
-        message:{
-             type:String,
-             required:false
+        // Stores the ID of the Driver/Admin the user is currently riding with
+        AllRide: {
+            type: Schema.Types.ObjectId, 
+            ref: "TravellingAdmin",
+            default: null
         }
-    },{
-        timestamps:true
+    },
+    {
+        timestamps: true
     }
-)
+);
 
-
-travellingUserSchema.pre("save",async function(next){
-    if(!this.isModified("TravellingUserKey")) return next();
-
-    this.TravellingUserKey=await bcrypt.hash(this.TravellingUserKey,10)
+travellingUserSchema.pre("save", async function (next) {
+    if (!this.isModified("TravellingUserKey")) return next();
+    this.TravellingUserKey = await bcrypt.hash(this.TravellingUserKey, 10);
     next();
-})
+});
 
-travellingUserSchema.methods.isTravellingkeyvalid=async function(TravellingUserKey){
-    return await bcrypt.compare(TravellingUserKey,this.TravellingUserKey)
-}
+travellingUserSchema.methods.isTravellingkeyvalid = async function (TravellingUserKey) {
+    return await bcrypt.compare(TravellingUserKey, this.TravellingUserKey);
+};
 
-export const TravellingUser = mongoose.model("TravellingUser", travellingUserSchema)
-
+export const TravellingUser = mongoose.model("TravellingUser", travellingUserSchema);
