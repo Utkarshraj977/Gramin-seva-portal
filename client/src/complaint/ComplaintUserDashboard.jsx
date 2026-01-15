@@ -1,304 +1,511 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import toast, { Toaster } from "react-hot-toast";
-// ✅ Ensure this path matches your file structure
-import ChatRoom from '../Chat/ChatRoom'; 
 import { 
-  Shield, Search, MessageSquare, Siren, 
-  UserPlus, Clock, CheckCircle, MapPin, 
-  Loader2, AlertTriangle, X
+  Plus, Trash2, Clock, CheckCircle2, XCircle, 
+  MapPin, Activity, Search, Home, UserCircle, 
+  Building2, Phone, Mail, ShieldCheck, RefreshCcw,
+  LayoutList, Users, Send, UserCheck, Filter, Loader2
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
+import { useNavigate, Link } from "react-router-dom";
 
 const ComplaintUserDashboard = () => {
-  // --- STATE ---
-  const [allAdmins, setAllAdmins] = useState([]);
-  const [filteredAdmins, setFilteredAdmins] = useState([]);
-  const [myRequest, setMyRequest] = useState(null); // { requestStatus: 'pending'|'accepted', assignedAdmin: {...} }
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
   
-  // Chat State
-  const [chatOpen, setChatOpen] = useState(false);
+  // --- STATE MANAGEMENT ---
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("my-complaints"); // 'my-complaints' | 'officials'
+  
+  // Data States
+  const [complaints, setComplaints] = useState([]);
+  const [filteredComplaints, setFilteredComplaints] = useState([]);
+  
+  const [officials, setOfficials] = useState([]); // List of all Admins
+  const [myConnections, setMyConnections] = useState([]); // List of requests I sent
+  const [filteredOfficials, setFilteredOfficials] = useState([]);
+  
+  const [stats, setStats] = useState({ total: 0, pending: 0, resolved: 0 });
+  const [userProfile, setUserProfile] = useState(null);
 
-  // --- API CONFIG ---
-  const BASE_URL = "http://localhost:8000/api/v1";
-  const token = localStorage.getItem("accessToken");
+  // Search & Filter
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
+  // Backend URL
+  const BASE_URL = "http://localhost:8000/api/v1"; 
 
-  // --- FETCH DATA ---
-  const fetchData = async () => {
+  // --- 1. ROBUST DATA FETCHING ---
+  const fetchAllData = useCallback(async (isBackground = false) => {
     try {
-      // 1. Get Current User (for ID)
-      const userRes = await axios.get(`${BASE_URL}/users/current-user`, getHeaders());
-      setCurrentUser(userRes.data.data);
-
-      // 2. Get All Officers (Admins)
-      const adminsRes = await axios.get(`${BASE_URL}/ComplaintAdmin/allcomplaint`, getHeaders());
-      const adminsList = adminsRes.data.data || [];
-      setAllAdmins(adminsList);
+      if (!isBackground) setLoading(true);
       
-      if(!searchTerm) setFilteredAdmins(adminsList);
-
-      // 3. Get My Request Status
-      // (Backend must return: { requestStatus: '...', assignedAdmin: { _id, ... } })
-      const statusRes = await axios.get(`${BASE_URL}/complaintuser/my-status`, getHeaders());
-      setMyRequest(statusRes.data.data);
+      // Use Promise.all for concurrent fetching (Optimization from reference)
+      const [dashboardRes, officialsRes] = await Promise.all([
+        axios.get(`${BASE_URL}/complaintuser/dashboard`, { withCredentials: true }),
+        axios.get(`${BASE_URL}/ComplaintAdmin/public/officials`)
+      ]);
+      
+      // Destructuring Response based on Controller
+      const { complaints, stats, profile, connections } = dashboardRes.data.data;
+      
+      setComplaints(complaints);
+      setStats(stats);
+      setUserProfile(profile);
+      setMyConnections(connections || []); 
+      setOfficials(officialsRes.data.data);
 
     } catch (error) {
-      console.error("Sync Error:", error);
+      console.error("Fetch Error:", error);
+      if (error.response?.status === 401 && !isBackground) {
+        toast.error("Session Expired");
+      
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
-  };
+  }, [navigate]);
 
-  // Poll for updates (Real-time status changes)
+  // Auto-refresh mechanism (Optimization from reference)
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+    fetchAllData();
+    const interval = setInterval(() => fetchAllData(true), 5000); // 5s refresh
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchAllData]);
 
-  // Search Logic
+  // --- 2. ADVANCED SEARCH & FILTER LOGIC ---
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredAdmins(allAdmins);
-    } else {
-      const lower = searchTerm.toLowerCase();
-      setFilteredAdmins(allAdmins.filter(a => 
-        (a.location?.toLowerCase().includes(lower)) || 
-        (a.category?.toLowerCase().includes(lower)) ||
-        (a.userInfo?.fullname?.toLowerCase().includes(lower))
-      ));
-    }
-  }, [searchTerm, allAdmins]);
+    const lowerQ = searchQuery.toLowerCase();
 
-  // --- HANDLERS ---
-  const handleConnect = async (adminId) => {
-    // Prompt for a reason/message
-    const message = prompt("Please describe your emergency or complaint briefly:");
-    if (!message) return;
+    if (activeTab === "my-complaints") {
+      let result = complaints;
+      if (statusFilter !== "All") result = result.filter(c => c.status === statusFilter);
+      if (searchQuery) result = result.filter(c => c.title.toLowerCase().includes(lowerQ));
+      setFilteredComplaints(result);
+    } else {
+      // Filter Officials
+      let result = officials;
+      if (searchQuery) {
+        result = result.filter(o => 
+          o.assignedWard?.toLowerCase().includes(lowerQ) || 
+          o.userInfo?.fullName?.toLowerCase().includes(lowerQ) ||
+          o.designation?.toLowerCase().includes(lowerQ) ||
+          o.location?.toLowerCase().includes(lowerQ)
+        );
+      }
+      setFilteredOfficials(result);
+    }
+  }, [complaints, officials, activeTab, statusFilter, searchQuery]);
+
+  // --- 3. OPTIMISTIC UI ACTIONS ---
+
+  // Connect Request Logic with Optimistic Update
+  const handleApply = async (adminId) => {
+    // 1. Create a temporary connection object for optimistic update
+    const tempConnection = { 
+        admin: adminId, 
+        status: "Pending", 
+        _id: "temp_" + Date.now() 
+    };
+
+    // 2. Backup current state
+    const previousConnections = [...myConnections];
+
+    // 3. Optimistically update UI
+    setMyConnections(prev => [...prev, tempConnection]);
+    toast.loading("Sending Request...");
 
     try {
-      toast.loading("Sending Alert...");
-      await axios.post(`${BASE_URL}/complaintuser/select-user/${adminId}`, { message }, getHeaders());
+      await axios.post(`${BASE_URL}/complaintuser/connect/${adminId}`, {}, { withCredentials: true });
       toast.dismiss();
-      toast.success("Complaint Registered. Waiting for Officer.");
-      fetchData(); 
+      toast.success("Request Sent Successfully!");
+      // 4. Fetch actual data to confirm/sync
+      fetchAllData(true); 
     } catch (error) {
       toast.dismiss();
-      toast.error(error.response?.data?.message || "Failed to send request");
+      toast.error(error.response?.data?.message || "Failed to connect");
+      // 5. Revert state on error
+      setMyConnections(previousConnections);
     }
   };
 
-  // --- RENDER HELPERS ---
-  const getAdminStatus = (adminId) => {
-    // Check if this specific admin is the one assigned to me
-    if (myRequest?.assignedAdmin?._id === adminId) {
-       return myRequest.requestStatus; // 'pending' or 'accepted'
-    }
-    // If I have an active request with SOMEONE ELSE, disable everyone else
-    if (myRequest?.assignedAdmin) return 'disabled';
+  // Withdraw Complaint with Confirmation
+  const handleDeleteComplaint = async (id) => {
+    if (!window.confirm("Are you sure you want to withdraw this complaint?")) return;
     
-    return 'available';
+    // Backup
+    const previousComplaints = [...complaints];
+    
+    // Optimistic Remove
+    setComplaints(prev => prev.filter(c => c._id !== id));
+
+    try {
+      await axios.delete(`${BASE_URL}/complaintuser/withdraw/${id}`, { withCredentials: true });
+      toast.success("Complaint Withdrawn");
+      fetchAllData(true); 
+    } catch (error) {
+      toast.error("Failed to withdraw");
+      // Revert
+      setComplaints(previousComplaints);
+    }
   };
+
+  // Helper to safely check connection status
+  const getConnectionStatus = (adminId) => {
+      if (!myConnections || myConnections.length === 0) return "None";
+      
+      const conn = myConnections.find(c => {
+          // Handle populated object vs raw ID string
+          const connAdminId = c.admin?._id || c.admin;
+          return String(connAdminId) === String(adminId);
+      });
+      
+      return conn ? conn.status : "None";
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+       <Loader2 className="animate-spin text-red-500 w-12 h-12" />
+       <p className="text-slate-500 mt-4 font-mono text-sm tracking-widest animate-pulse">LOADING PORTAL...</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-12 relative">
-      <Toaster position="top-center" />
+    <div className="min-h-screen bg-slate-950 font-sans pb-20 text-slate-200 selection:bg-red-500/30">
+      <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' } }} />
 
-      {/* --- HEADER --- */}
-      <header className="bg-white sticky top-0 z-20 shadow-sm border-b border-gray-100 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-                <div className="bg-red-600 p-2 rounded-lg text-white shadow-red-200 shadow-lg">
-                    <Siren size={24} className="animate-pulse" />
-                </div>
-                <div>
-                    <h1 className="text-xl font-extrabold text-slate-800 hidden md:block tracking-tight">
-                        Citizen<span className="text-red-600">Safe</span>
-                    </h1>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest hidden md:block">Emergency Response Portal</p>
-                </div>
-            </div>
+      {/* === HEADER === */}
+      <div className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+           <div className="flex items-center gap-4">
+              <div className="p-2.5 bg-gradient-to-br from-red-600 to-red-800 rounded-xl shadow-lg shadow-red-900/20">
+                 <ShieldCheck className="text-white h-6 w-6" />
+              </div>
+              <div>
+                 <h1 className="text-xl font-bold text-white tracking-tight">Jan Sunwai</h1>
+                 <p className="text-slate-400 text-xs font-medium">Citizen Grievance Portal</p>
+              </div>
+           </div>
 
-            <div className="flex-1 max-w-md relative">
-                <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Search Departments or Locations..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full border-none focus:ring-2 focus:ring-red-500 outline-none transition-all"
-                />
-            </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 mt-8">
-        
-        {/* --- SECTION 1: ACTIVE EMERGENCY (Top Card) --- */}
-        <AnimatePresence>
-        {myRequest?.requestStatus === 'accepted' && myRequest.assignedAdmin && (
-            <motion.div 
-                initial={{y:-20, opacity:0}} animate={{y:0, opacity:1}} 
-                className="mb-10 bg-emerald-600 rounded-3xl p-1 shadow-2xl shadow-emerald-200"
-            >
-                <div className="bg-white rounded-[20px] p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-24 bg-emerald-50 rounded-bl-full -mr-10 -mt-10 z-0"></div>
-                    
-                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
-                        <div className="flex gap-5">
-                            <div className="h-24 w-24 rounded-2xl bg-slate-100 border-4 border-emerald-50 flex items-center justify-center text-4xl shadow-sm">
-                                👮‍♂️
-                            </div>
-                            <div>
-                                <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 w-fit mb-2 border border-emerald-200">
-                                    <CheckCircle size={14}/> Case Active
-                                </span>
-                                <h2 className="text-2xl font-bold text-slate-800">
-                                    Officer {myRequest.assignedAdmin.userInfo?.fullname}
-                                </h2>
-                                <p className="text-slate-500 font-medium flex items-center gap-2 mt-1">
-                                    <Shield size={16} className="text-emerald-500"/> 
-                                    {myRequest.assignedAdmin.category || "General Unit"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <button 
-                                onClick={() => setChatOpen(true)}
-                                className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95"
-                            >
-                                <MessageSquare size={18}/> Secure Chat
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        )}
-        </AnimatePresence>
-
-        {/* --- SECTION 2: AVAILABLE OFFICERS GRID --- */}
-        <div className="mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
-            <Shield className="text-slate-400" size={20}/>
-            <h2 className="text-lg font-bold text-slate-700">Available Authorities</h2>
-        </div>
-
-        {loading ? (
-           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-red-600" size={32}/></div>
-        ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAdmins.filter(a => a._id !== myRequest?.assignedAdmin?._id).map((admin) => {
-                    const status = getAdminStatus(admin._id);
-
-                    return (
-                        <motion.div 
-                            key={admin._id} 
-                            initial={{opacity:0, y:10}} 
-                            animate={{opacity:1, y:0}} 
-                            className={`bg-white rounded-2xl p-5 border shadow-sm hover:shadow-xl transition-all group ${status === 'disabled' ? 'opacity-50 grayscale' : 'border-gray-100 hover:border-red-100'}`}
-                        >
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-4">
-                                    <img 
-                                        src={admin.userInfo?.avatar?.url || "https://ui-avatars.com/api/?name=Officer"} 
-                                        className="h-14 w-14 rounded-2xl bg-slate-100 object-cover border border-slate-200"
-                                        alt="Officer"
-                                    />
-                                    <div>
-                                        <h3 className="font-bold text-slate-800 text-lg leading-tight">{admin.userInfo?.fullname}</h3>
-                                        <p className="text-xs text-red-500 font-bold uppercase tracking-wider mt-1">
-                                            {admin.category || "Police Dept"}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="bg-slate-50 rounded-xl p-3 mb-5 border border-slate-100">
-                                <p className="text-slate-500 text-sm flex items-center gap-2">
-                                    <MapPin size={16} className="text-slate-400"/> 
-                                    <span className="truncate font-medium">{admin.location}</span>
-                                </p>
-                                <p className="text-slate-400 text-xs mt-1 ml-6">
-                                    Active: {admin.Start_time} - {admin.End_time}
-                                </p>
-                            </div>
-
-                            <div className="mt-auto">
-                                {status === 'pending' ? (
-                                    <button disabled className="w-full py-3 bg-amber-50 text-amber-600 border border-amber-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 animate-pulse cursor-wait">
-                                        <Clock size={18}/> Request Pending...
-                                    </button>
-                                ) : status === 'disabled' ? (
-                                    <button disabled className="w-full py-3 bg-gray-100 text-gray-400 border border-gray-200 rounded-xl font-bold text-sm cursor-not-allowed">
-                                        Unavailable (Case Active)
-                                    </button>
-                                ) : (
-                                    <button 
-                                        onClick={() => handleConnect(admin._id)} 
-                                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-600 transition-colors shadow-lg shadow-slate-200 group-hover:shadow-red-200"
-                                    >
-                                        <AlertTriangle size={18} className="text-red-500 group-hover:text-white transition-colors"/> 
-                                        Report Complaint
-                                    </button>
-                                )}
-                            </div>
-                        </motion.div>
-                    );
-                })}
-            </div>
-        )}
-      </main>
-
-      {/* --- CHAT MODAL --- */}
-      {chatOpen && myRequest?.assignedAdmin && currentUser && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-           <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20">
-               {/* Chat Header */}
-               <div className="bg-slate-900 p-4 flex justify-between items-center border-b border-slate-800 z-10">
-                   <div className="flex items-center gap-3">
-                       <div className="relative">
-                           <img 
-                                src={myRequest.assignedAdmin.userInfo?.avatar?.url || "https://ui-avatars.com/api/?name=Officer"} 
-                                className="w-10 h-10 rounded-full border border-slate-600 object-cover bg-slate-800"
-                                alt="Officer"
-                           />
-                           <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-slate-900"></div>
-                       </div>
-                       <div>
-                           <h3 className="font-bold text-white leading-none">Officer {myRequest.assignedAdmin.userInfo?.fullname}</h3>
-                           <span className="text-xs text-blue-400 font-medium">Secure Line Encrypted</span>
-                       </div>
-                   </div>
-                   <button onClick={() => setChatOpen(false)} className="hover:bg-slate-800 p-2 rounded-full transition text-slate-400 hover:text-white"><X size={20}/></button>
-               </div>
-               
-               <div className="flex-1 overflow-hidden bg-slate-100 relative">
-                   <ChatRoom 
-                      // 🔐 CRITICAL: Room ID must match Admin's logic: [AdminID, UserID].sort().join("-")
-                      roomId={[String(myRequest.assignedAdmin._id), String(currentUser._id)].sort().join("-")}
-                      
-                      currentUser={{ 
-                          name: currentUser.fullname, 
-                          id: currentUser._id 
-                      }}
-                      targetUser={{ 
-                          name: myRequest.assignedAdmin.userInfo?.fullname, 
-                          avatar: myRequest.assignedAdmin.userInfo?.avatar?.url 
-                      }}
-                   />
-               </div>
+           {/* User Profile Pill */}
+           <div className="flex items-center gap-4 bg-slate-800/80 p-2 pr-6 rounded-full border border-slate-700/50 shadow-xl">
+              <div className="h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-red-500 to-orange-500">
+                 <div className="h-full w-full rounded-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                    {userProfile?.avatar?.url ? (
+                       <img src={userProfile.avatar.url} alt="User" className="h-full w-full object-cover" />
+                    ) : (
+                       <UserCircle className="text-slate-400" size={24} />
+                    )}
+                 </div>
+              </div>
+              <div>
+                 <h3 className="text-white font-medium text-sm">{userProfile?.fullName || "Citizen"}</h3>
+                 <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Online</p>
+                 </div>
+              </div>
+              <Link to="/" className="ml-2 p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"><Home size={16}/></Link>
            </div>
         </div>
-      )}
+      </div>
+
+      {/* === BODY === */}
+      <div className="max-w-7xl mx-auto px-4 mt-8 relative z-10">
+        
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+           <StatCard count={stats.total} label="Total Filed" icon={<Activity/>} color="text-blue-400" bg="bg-blue-500/10" border="border-blue-500/20" />
+           <StatCard count={stats.pending} label="Pending Action" icon={<Clock/>} color="text-amber-400" bg="bg-amber-500/10" border="border-amber-500/20" />
+           <StatCard count={stats.resolved} label="Resolved Cases" icon={<CheckCircle2/>} color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
+           <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-sm">
+              <TabButton active={activeTab === "my-complaints"} onClick={() => setActiveTab("my-complaints")} icon={LayoutList} label="My Complaints" />
+              <TabButton active={activeTab === "officials"} onClick={() => setActiveTab("officials")} icon={Users} label="Find Officials" />
+           </div>
+
+           <div className="flex gap-3 w-full md:w-auto">
+             <button onClick={() => fetchAllData()} className="p-3 bg-slate-900 border border-slate-800 rounded-xl text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all shadow-sm" title="Refresh">
+                <RefreshCcw size={20} />
+             </button>
+
+             <div className="relative flex-1 md:w-80">
+               <Search className="absolute left-3 top-3 text-slate-500" size={18} />
+               <input 
+                 type="text" 
+                 placeholder={activeTab === "my-complaints" ? "Search complaints..." : "Search Ward, Name..."}
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl outline-none focus:border-red-500 transition-all text-sm text-white placeholder-slate-600 shadow-sm"
+               />
+             </div>
+           </div>
+
+           {activeTab === "my-complaints" && (
+             <Link to="/complaint/user/register" className="w-full md:w-auto px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-900/20 transition-transform hover:scale-105 text-sm">
+               <Plus size={18} /> File New
+             </Link>
+           )}
+        </div>
+
+        {/* Content Area */}
+        <AnimatePresence mode="wait">
+           
+           {/* === TAB 1: MY COMPLAINTS === */}
+           {activeTab === "my-complaints" && (
+             <motion.div 
+               key="complaints"
+               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+               className="space-y-6"
+             >
+               {/* Filters */}
+               <div className="flex gap-2 overflow-x-auto pb-2">
+                  {["All", "Pending", "Resolved", "Rejected"].map(status => (
+                    <button 
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap border transition-all ${statusFilter === status ? "bg-red-500/10 border-red-500 text-red-400" : "bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300"}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+               </div>
+
+               {filteredComplaints.length > 0 ? (
+                 <div className="grid grid-cols-1 gap-4">
+                   {filteredComplaints.map(item => (
+                     <ComplaintCard key={item._id} data={item} onDelete={() => handleDeleteComplaint(item._id)} />
+                   ))}
+                 </div>
+               ) : (
+                 <EmptyState message="No complaints found matching criteria." icon={Filter} />
+               )}
+             </motion.div>
+           )}
+
+           {/* === TAB 2: OFFICIALS (CONNECTION REQUESTS) === */}
+           {activeTab === "officials" && (
+              <motion.div 
+                key="officials"
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+              >
+                {filteredOfficials.length > 0 ? (
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredOfficials.map(official => {
+                         const status = getConnectionStatus(official._id);
+
+                         return (
+                            <OfficialCard 
+                              key={official._id} 
+                              data={official} 
+                              status={status}
+                              onApply={() => handleApply(official._id)}
+                            />
+                         );
+                      })}
+                   </div>
+                ) : (
+                   <EmptyState message="No officials found." icon={Search} />
+                )}
+              </motion.div>
+           )}
+
+        </AnimatePresence>
+
+      </div>
     </div>
+  );
+};
+
+/* --- SUB COMPONENTS --- */
+
+const TabButton = ({ active, onClick, icon: Icon, label }) => (
+  <button 
+    onClick={onClick}
+    className={`px-6 py-2.5 text-sm font-medium rounded-lg transition-all flex items-center gap-2 ${active ? "bg-slate-800 text-white shadow-sm ring-1 ring-slate-700" : "text-slate-400 hover:text-white"}`}
+  >
+    <Icon size={16} /> {label}
+  </button>
+);
+
+const StatCard = ({ count, label, icon, color, bg, border }) => (
+  <div className={`bg-slate-900 border ${border} p-6 rounded-2xl flex items-center justify-between hover:shadow-lg transition-shadow`}>
+     <div>
+        <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">{label}</p>
+        <h3 className="text-3xl font-bold text-white tracking-tight">{count}</h3>
+     </div>
+     <div className={`p-3 rounded-xl ${bg} ${color}`}>
+        {icon}
+     </div>
+  </div>
+);
+
+const EmptyState = ({ message, icon: Icon }) => (
+  <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
+     <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Icon className="text-slate-600" size={32} />
+     </div>
+     <p className="text-slate-500 text-sm font-medium">{message}</p>
+  </div>
+);
+
+// --- COMPLAINT CARD ---
+const ComplaintCard = ({ data, onDelete }) => {
+  const isResolved = data.status === "Resolved";
+  const isRejected = data.status === "Rejected";
+
+  return (
+    <div className="bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-800 flex flex-col md:flex-row gap-6 relative overflow-hidden group hover:border-slate-700 transition-all">
+       <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isResolved ? "bg-emerald-500" : isRejected ? "bg-red-500" : "bg-amber-500"}`}></div>
+       
+       <div className="w-full md:w-36 h-36 bg-slate-950 rounded-2xl overflow-hidden shrink-0 border border-slate-800 group-hover:border-slate-600 transition-colors">
+         {data.complaintImage?.url ? (
+            <img src={data.complaintImage.url} alt="Proof" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+         ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-700"><Activity/></div>
+         )}
+       </div>
+
+       <div className="flex-1 flex flex-col justify-between">
+          <div>
+              <div className="flex justify-between items-start mb-3">
+                 <div>
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block mb-1">{data.category} • {new Date(data.createdAt).toLocaleDateString()}</span>
+                    <h3 className="text-xl font-bold text-white group-hover:text-red-400 transition-colors">{data.title}</h3>
+                 </div>
+                 <StatusBadge status={data.status} />
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4 font-medium bg-slate-800/50 w-fit px-2 py-1 rounded-lg border border-slate-800">
+                 <MapPin size={12} className="text-red-500"/> {data.location}
+              </div>
+              
+              <p className="text-sm text-slate-300 bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4 italic leading-relaxed">"{data.message}"</p>
+          </div>
+
+          {/* Admin Response Section */}
+          {data.adminResponse && (
+             <div className={`p-4 rounded-xl border text-sm flex gap-3 ${isResolved ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+                <ShieldCheck size={18} className="shrink-0 mt-0.5"/>
+                <div><span className="block text-[10px] font-bold uppercase opacity-70 mb-1">Official Response</span>{data.adminResponse}</div>
+             </div>
+          )}
+
+          {data.status === "Pending" && (
+             <div className="mt-4 flex justify-end">
+                <button onClick={onDelete} className="flex items-center gap-2 text-xs font-bold text-red-500 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-colors border border-transparent hover:border-red-500/20">
+                   <Trash2 size={14} /> Withdraw Complaint
+                </button>
+             </div>
+          )}
+       </div>
+    </div>
+  );
+};
+
+// --- OFFICIAL CARD (STATUS LOGIC) ---
+const OfficialCard = ({ data, status, onApply }) => {
+  const isPending = status === "Pending";
+  const isAccepted = status === "Accepted"; // Means Connected
+  const isRejected = status === "Rejected";
+
+  return (
+    <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all border border-slate-800 group hover:border-slate-600 flex flex-col relative">
+       {/* Header */}
+       <div className="h-28 bg-gradient-to-br from-slate-800 to-slate-900 relative">
+          <div className="absolute top-4 right-4">
+             {/* Badge based on Status */}
+             {isAccepted ? (
+                <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border border-emerald-500/30 flex items-center gap-1.5 backdrop-blur-md">
+                   <UserCheck size={12}/> Connected
+                </div>
+             ) : isRejected ? (
+                <div className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border border-red-500/30 flex items-center gap-1.5 backdrop-blur-md">
+                   <XCircle size={12}/> Rejected
+                </div>
+             ) : isPending ? (
+                <div className="bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border border-amber-500/30 flex items-center gap-1.5 backdrop-blur-md">
+                   <Clock size={12}/> Request Sent
+                </div>
+             ) : (
+                <div className="bg-slate-700/50 text-slate-400 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border border-slate-600 backdrop-blur-md">Official</div>
+             )}
+          </div>
+       </div>
+
+       <div className="px-6 relative -mt-14">
+          <div className="w-24 h-24 rounded-2xl border-4 border-slate-900 bg-slate-800 absolute overflow-hidden shadow-xl">
+             {data.userInfo?.avatar?.url ? (
+               <img src={data.userInfo.avatar.url} alt="Avatar" className="w-full h-full object-cover"/>
+             ) : (
+               <div className="w-full h-full flex items-center justify-center text-slate-600"><UserCircle size={48}/></div>
+             )}
+          </div>
+       </div>
+       
+       <div className="pt-14 px-6 pb-6 flex-1 flex flex-col">
+          <h3 className="font-bold text-xl text-white group-hover:text-blue-400 transition-colors">{data.userInfo?.fullName || "Officer Name"}</h3>
+          <p className="text-red-500 text-sm font-medium mb-6 uppercase tracking-wide">{data.designation}</p>
+
+          <div className="space-y-3 mb-6 flex-1">
+             <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/50">
+                <MapPin size={16} className="text-blue-500"/> <span className="truncate">{data.assignedWard || "All"}</span>
+             </div>
+             <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/50">
+                <Building2 size={16} className="text-orange-500"/> <span className="truncate">{data.location}</span>
+             </div>
+             <div className="flex items-center gap-3 text-sm text-slate-400 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/50">
+                <Clock size={16} className="text-purple-500"/> <span className="truncate">{data.Start_time} - {data.End_time}</span>
+             </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="pt-4 border-t border-slate-800">
+             {status === "None" || !status ? (
+                <button 
+                  onClick={onApply}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                   <Send size={16}/> Connect Request
+                </button>
+             ) : isAccepted ? (
+                // Only show Contact Info if Accepted
+                <div className="grid grid-cols-2 gap-3">
+                   {data.userInfo?.phone && (
+                      <a href={`tel:${data.userInfo.phone}`} className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500 hover:text-white">
+                         <Phone size={14}/> Call
+                      </a>
+                   )}
+                   {data.userInfo?.email && (
+                      <a href={`mailto:${data.userInfo.email}`} className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all border bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500 hover:text-white">
+                         <Mail size={14}/> Email
+                      </a>
+                   )}
+                </div>
+             ) : (
+                <button disabled className="w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-bold text-sm border border-slate-700 cursor-not-allowed opacity-70">
+                   {isRejected ? "Request Rejected" : "Request Sent..."}
+                </button>
+             )}
+          </div>
+       </div>
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }) => {
+  const styles = {
+    Pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+    Resolved: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    Rejected: "bg-red-500/10 text-red-500 border-red-500/20",
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${styles[status] || styles.Pending}`}>
+      {status}
+    </span>
   );
 };
 

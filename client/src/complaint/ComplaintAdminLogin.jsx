@@ -1,118 +1,154 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Lock, ShieldCheck, Siren, ArrowRight } from "lucide-react";
+import { 
+  Building2, Key, ShieldCheck, Loader2, ArrowRight, Lock 
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
 const ComplaintAdminLogin = () => {
-  const [loading, setLoading] = useState(false);
-  const [ComplaintAdminKey, setComplaintAdminKey] = useState("");
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [key, setKey] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!ComplaintAdminKey.trim()) {
-      toast.error("Admin Key is missing");
+    if (!key.trim()) {
+      toast.error("Please enter your Admin Key");
       setLoading(false);
       return;
     }
 
     try {
+      // Backend API Call
       const response = await axios.post(
-        "http://localhost:8000/api/v1/ComplaintAdmin/adminlogin",
-        { ComplaintAdminKey },
-        { withCredentials: true }
+        "http://localhost:8000/api/v1/ComplaintAdmin/login",
+        { ComplaintAdminKey: key },
+        {
+          withCredentials: true, // Zaroori hai taaki main user ki cookies saath jayein
+          headers: { "Content-Type": "application/json" },
+        }
       );
 
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Command Center Access Granted");
+      if (response.status === 200) {
+        toast.success("Welcome Back, Official!");
         
-        // Redirect to Admin Dashboard
-        setTimeout(() => {
-          navigate("/complaint/admin/dashboard");
-        }, 1500);
+        // Redirect to Dashboard
+        setTimeout(() => navigate("/complaint/admin/dashboard"), 1500);
       }
     } catch (error) {
-      // Backend returns 409 if key is wrong
-      const errorMsg = error.response?.data?.message || "Unauthorized Access";
-      toast.error(errorMsg);
+      console.error("Login Error:", error);
+      
+      // Error Handling Logic
+      const status = error.response?.status;
+      const msg = error.response?.data?.message || "Login Failed";
+
+      if (status === 404) {
+        toast.error("Admin Profile not found. Please Register first.");
+      } else if (status === 401) {
+        // Could be wrong key OR user not logged in main portal
+        if (msg.includes("Invalid Admin Key")) {
+           toast.error("Incorrect Secret Key!");
+        } else {
+           toast.error("Please login to the Main Portal first.");
+        }
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } },
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1542281286-9e0a16bb7366?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center relative p-4">
-      {/* Dark Red Overlay for Authority vibe */}
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm"></div>
-      <Toaster position="top-center" />
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-40"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-900/20 rounded-full blur-[120px]"></div>
 
-      <motion.div
+      <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#fff' } }} />
+
+      <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-md bg-white/5 border border-red-600/40 rounded-2xl shadow-[0_0_50px_rgba(220,38,38,0.2)] p-8 backdrop-blur-xl"
+        className="relative z-10 w-full max-w-4xl bg-slate-900/80 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl"
       >
-        <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-900/30 border border-red-500/50 mb-4 shadow-[0_0_15px_rgba(220,38,38,0.4)]">
-              <ShieldCheck className="text-red-500 w-10 h-10" />
-           </div>
-           <h1 className="text-3xl font-extrabold text-white tracking-widest uppercase">
-             Admin Panel
-           </h1>
-           <div className="flex items-center justify-center gap-2 mt-2">
-             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-             <p className="text-red-400/70 text-xs font-mono tracking-widest">
-               RESTRICTED ACCESS
-             </p>
-           </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-             <label className="text-xs text-red-500 font-bold ml-1 uppercase tracking-wider">
-               Master Key
-             </label>
-             <div className="relative group">
-                <Lock className="absolute left-4 top-3.5 text-gray-500 group-focus-within:text-red-500 transition-colors" size={18} />
-                <input 
-                  type="password" 
-                  value={ComplaintAdminKey}
-                  onChange={(e) => setComplaintAdminKey(e.target.value)}
-                  className="w-full bg-black/60 border border-red-500/30 text-white rounded-xl py-3 pl-12 pr-4 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-mono tracking-widest placeholder:text-gray-700"
-                  placeholder="ENTER KEY"
-                  required
-                />
-             </div>
+        
+        {/* Left Side: Info */}
+        <div className="md:w-1/2 bg-gradient-to-br from-slate-900 to-slate-950 p-10 border-r border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/50 mb-6">
+               <Building2 className="text-white" size={24} />
+            </div>
+            
+            <h2 className="text-3xl font-bold text-slate-200 mb-2">
+              Official <span className="text-red-500">Access.</span>
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Secure login for Gram Pradhans, Ward Members, and Department Heads to manage public grievances.
+            </p>
           </div>
 
-          <motion.button 
-            whileHover={{ scale: 1.02 }} 
-            whileTap={{ scale: 0.98 }} 
-            disabled={loading} 
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all mt-4 ${loading ? "bg-gray-700 cursor-not-allowed" : "bg-red-600 hover:bg-red-500 hover:shadow-red-600/40"}`}
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <>AUTHENTICATE <ArrowRight size={20} /></>
-            )}
-          </motion.button>
-        </form>
-
-        <div className="mt-8 text-center border-t border-white/10 pt-4">
-           <Link to="/complaint/admin/register" className="text-gray-500 hover:text-red-400 text-sm transition-colors font-medium">
-             Register New Department
-           </Link>
+          <div className="mt-8 bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex items-center gap-3">
+             <ShieldCheck className="text-green-400 shrink-0" size={24} />
+             <div>
+                <h4 className="text-sm font-bold text-slate-200">Secure Gateway</h4>
+                <p className="text-xs text-slate-500">End-to-end encrypted session.</p>
+             </div>
+          </div>
         </div>
+
+        {/* Right Side: Login Form */}
+        <div className="md:w-1/2 p-10 flex flex-col justify-center">
+          <div className="mb-8">
+             <h3 className="text-xl font-bold text-white mb-1">Welcome Back</h3>
+             <p className="text-slate-500 text-sm">Enter your secret key to continue.</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            
+            <div className="space-y-2">
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Secret Key / PIN</label>
+               <div className="relative group">
+                 <Lock className="absolute left-3 top-3.5 text-slate-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                 <input 
+                   type="password" 
+                   value={key}
+                   onChange={(e) => setKey(e.target.value)}
+                   placeholder="••••••••" 
+                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-lg tracking-widest font-mono"
+                   required
+                 />
+               </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <>ACCESS DASHBOARD <ArrowRight size={18} /></>}
+            </button>
+
+            <div className="text-center pt-2">
+               <p className="text-slate-500 text-sm">
+                 Not registered as an official? <br/>
+                 <Link to="/complaint/admin/register" className="text-red-400 hover:text-red-300 font-bold hover:underline">Apply for Official Account</Link>
+               </p>
+            </div>
+
+          </form>
+        </div>
+
       </motion.div>
     </div>
   );

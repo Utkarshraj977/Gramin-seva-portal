@@ -1,54 +1,60 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Lock, ShieldAlert, Fingerprint, ArrowRight, FileWarning } from "lucide-react";
+import { 
+  ShieldCheck, Key, Lock, Search, ArrowRight, Loader2, FileText 
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
 const ComplaintUserLogin = () => {
-  const [loading, setLoading] = useState(false);
-  const [ComplaintUserKey, setComplaintUserKey] = useState("");
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [key, setKey] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Basic Client-side Validation
-    if (!ComplaintUserKey || ComplaintUserKey.trim() === "") {
-      toast.error("Security Key is required");
+    if (!key.trim()) {
+      toast.error("Please enter your 6-digit Security PIN");
       setLoading(false);
       return;
     }
 
     try {
+      // Backend API Call
       const response = await axios.post(
-        "http://localhost:8000/api/v1/complaintuser/userlogin",
-        { ComplaintUserKey },
-        { 
-          withCredentials: true // Critical: Ensures req.user is available in backend
+        "http://localhost:8000/api/v1/complaintuser/login",
+        { ComplaintUserKey: key },
+        {
+          withCredentials: true, // Main user auth verify karne ke liye
+          headers: { "Content-Type": "application/json" },
         }
       );
 
       if (response.status === 200) {
-        toast.success("Identity Verified. Accessing Records...");
+        toast.success("Access Granted! Redirecting...");
         
-        // Redirect to Complaint Dashboard
-        setTimeout(() => {
-          navigate("/complaint/user/dashboard");
-        }, 1500);
+        // Redirect to User Dashboard
+        setTimeout(() => navigate("/complaint/user/dashboard"), 1500);
       }
     } catch (error) {
-      // Handle specific backend errors
-      const status = error.response?.status;
-      const errorMsg = error.response?.data?.message || "Authentication Failed";
+      console.error("Login Error:", error);
       
+      const status = error.response?.status;
+      const msg = error.response?.data?.message || "Login Failed";
+
       if (status === 404) {
-         toast.error("User session not found. Please log in to the main app first.");
+        toast.error("No complaints found. Please file a complaint first.");
       } else if (status === 401) {
-         toast.error("Invalid Key or Unauthorized Access.");
+        if (msg.includes("Invalid Security PIN")) {
+           toast.error("Incorrect PIN! Please try again.");
+        } else {
+           toast.error("Please login to the Main Portal first.");
+        }
       } else {
-         toast.error(errorMsg);
+        toast.error(msg);
       }
     } finally {
       setLoading(false);
@@ -57,82 +63,96 @@ const ComplaintUserLogin = () => {
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.95 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.5 } },
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1542281286-9e0a16bb7366?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center relative p-4">
-      {/* Dark Red Overlay */}
-      <div className="absolute inset-0 bg-red-950/90 backdrop-blur-[2px]"></div>
-      <Toaster position="top-center" />
+    <div className="min-h-screen flex items-center justify-center bg-[#1a0505] p-4 font-sans relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-900/10 rounded-full blur-[120px]"></div>
 
-      <motion.div
+      <Toaster position="top-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
+
+      <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-md bg-white/5 border border-red-500/40 rounded-3xl shadow-[0_0_40px_rgba(220,38,38,0.25)] p-8 backdrop-blur-xl"
+        className="relative z-10 w-full max-w-4xl bg-black/40 border border-red-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-xl"
       >
-        {/* Header Visuals */}
-        <div className="text-center mb-8">
-           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-900/40 border border-red-500/50 mb-4 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
-              <ShieldAlert className="text-red-500 w-10 h-10 animate-pulse" />
-           </div>
-           <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-400 tracking-wider">
-             RESTRICTED
-           </h1>
-           <p className="text-red-400/70 text-xs font-mono mt-2 tracking-widest uppercase">
-             Complaint Reporting System
-           </p>
-        </div>
-
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-             <label className="text-xs text-red-500 font-bold ml-1 uppercase tracking-wider flex items-center gap-1">
-               <Fingerprint size={14} /> Security PIN
-             </label>
-             <div className="relative group">
-                <Lock className="absolute left-4 top-3.5 text-red-700/70 group-focus-within:text-red-500 transition-colors" size={18} />
-                <input 
-                  type="password" 
-                  value={ComplaintUserKey}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (/^\d*$/.test(val) && val.length <= 6) setComplaintUserKey(val);
-                  }}
-                  className="w-full bg-black/50 border border-red-500/30 text-white rounded-xl py-3 pl-12 pr-4 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all font-mono tracking-[0.5em] text-center text-xl placeholder:text-red-900/50 placeholder:tracking-normal"
-                  placeholder="••••••"
-                  required
-                />
-             </div>
+        
+        {/* Left Side: Info */}
+        <div className="md:w-1/2 bg-gradient-to-br from-red-950 to-black p-10 border-r border-red-500/20 flex flex-col justify-between">
+          <div>
+            <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/50 mb-6">
+               <Search className="text-white" size={24} />
+            </div>
+            
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Track <span className="text-red-500">Status.</span>
+            </h2>
+            <p className="text-red-200/60 text-sm leading-relaxed">
+              Enter your Security PIN to view the status of your complaints, admin responses, and history.
+            </p>
           </div>
 
-          <motion.button 
-            whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" }} 
-            whileTap={{ scale: 0.98 }} 
-            disabled={loading} 
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all mt-4 ${loading ? "bg-gray-800 cursor-not-allowed" : "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700"}`}
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm">Verifying Credentials...</span>
-              </div>
-            ) : (
-              <>ACCESS FILE <ArrowRight size={20} /></>
-            )}
-          </motion.button>
-        </form>
-
-        {/* Footer */}
-        <div className="mt-8 text-center border-t border-red-500/20 pt-4">
-           <p className="text-gray-500 text-sm flex flex-col gap-1">
-             <span>Not registered yet?</span>
-             <Link to="/complaint/user/register" className="text-red-400 hover:text-red-300 hover:underline transition-colors font-semibold flex items-center justify-center gap-1">
-               <FileWarning size={14}/> File New Complaint
-             </Link>
-           </p>
+          <div className="mt-8 bg-black/30 p-4 rounded-xl border border-white/5 flex items-center gap-3">
+             <ShieldCheck className="text-green-500 shrink-0" size={24} />
+             <div>
+                <h4 className="text-sm font-bold text-gray-200">Secure Access</h4>
+                <p className="text-[11px] text-gray-500">Your complaints are private.</p>
+             </div>
+          </div>
         </div>
+
+        {/* Right Side: Login Form */}
+        <div className="md:w-1/2 p-10 flex flex-col justify-center bg-zinc-900/50">
+          <div className="mb-8">
+             <h3 className="text-xl font-bold text-white mb-1">Welcome Back</h3>
+             <p className="text-gray-500 text-sm">Access your grievance dashboard.</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            
+            <div className="space-y-2">
+               <label className="text-xs font-bold text-gray-400 uppercase ml-1">Security PIN (6-Digits)</label>
+               <div className="relative group">
+                 <Lock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-500 transition-colors" size={18} />
+                 <input 
+                   type="password" 
+                   inputMode="numeric"
+                   value={key}
+                   onChange={(e) => {
+                     const val = e.target.value;
+                     if (/^\d*$/.test(val) && val.length <= 6) setKey(val);
+                   }}
+                   placeholder="• • • • • •" 
+                   className="w-full bg-black/40 border border-white/10 text-white rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-xl tracking-[0.5em] font-mono text-center placeholder:tracking-normal"
+                   required
+                 />
+               </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <>VIEW MY COMPLAINTS <ArrowRight size={18} /></>}
+            </button>
+
+            <div className="text-center pt-2">
+               <p className="text-gray-500 text-sm">
+                 Haven't filed a complaint yet? <br/>
+                 <Link to="/complaint/user/register" className="text-red-400 hover:text-red-300 font-bold hover:underline flex items-center justify-center gap-1 mt-1">
+                    <FileText size={14}/> File New Complaint
+                 </Link>
+               </p>
+            </div>
+
+          </form>
+        </div>
+
       </motion.div>
     </div>
   );

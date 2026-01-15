@@ -1,40 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { motion } from "framer-motion";
-import { Shield, Clock, MapPin, Key, FileBadge, Upload, X, CheckCircle, Siren } from "lucide-react";
+import { 
+  Building2, UserCheck, Key, MapPin, UploadCloud, 
+  Clock, ShieldCheck, FileText, Loader2, ArrowRight, X 
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
 const ComplaintAdminRegister = () => {
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
+  // Form Fields based on Backend Model
   const [formData, setFormData] = useState({
-    category: "",
+    designation: "Gram Pradhan",
+    assignedWard: "",
+    category: "General Administration",
     Start_time: "",
     End_time: "",
     location: "",
-    ComplaintAdminKey: "",
+    ComplaintAdminKey: ""
   });
 
-  const [file, setFile] = useState(null);
+  const [certificate, setCertificate] = useState(null);
   const [preview, setPreview] = useState(null);
 
-  const handleInputChange = (e) => {
+  // Cleanup memory for preview image
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
+    const file = e.target.files?.[0];
+    if (file) {
+      setCertificate(file);
+      setPreview(URL.createObjectURL(file));
     }
   };
 
-  const removeFile = () => {
-    setFile(null);
+  const removeFile = (e) => {
+    e.preventDefault(); // Prevent form submission
+    setCertificate(null);
     setPreview(null);
   };
 
@@ -42,164 +56,310 @@ const ComplaintAdminRegister = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (!file) {
-        toast.error("Authority Certificate is required");
-        setLoading(false);
-        return;
+    if (!certificate) {
+      toast.error("Official ID/Certificate upload is required");
+      setLoading(false);
+      return;
     }
 
-    // Create FormData for file upload
-    const data = new FormData();
-    data.append("category", formData.category);
-    data.append("Start_time", formData.Start_time);
-    data.append("End_time", formData.End_time);
-    data.append("location", formData.location);
-    data.append("ComplaintAdminKey", formData.ComplaintAdminKey);
-    data.append("complaintAdmin_certificate", file);
+    // Key validation (Optional: length check)
+    if (formData.ComplaintAdminKey.length < 4) {
+      toast.error("Secret Key must be at least 4 characters");
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Assuming route is /api/v1/ComplaintAdmin/register based on logic
+      const data = new FormData();
+      Object.keys(formData).forEach((key) => {
+        data.append(key, formData[key]);
+      });
+      data.append("complaintAdmin_certificate", certificate);
+
       const response = await axios.post(
-        "http://localhost:8000/api/v1/ComplaintAdmin/register", 
+        "http://localhost:8000/api/v1/ComplaintAdmin/register",
         data,
         {
-          headers: { "Content-Type": "multipart/form-data" },
           withCredentials: true,
+          headers: { "Content-Type": "multipart/form-data" },
         }
       );
 
-      if (response.status === 201) {
-        toast.success("Authority Registered Successfully!");
-        setTimeout(() => {
-            navigate("/complaint/admin/login"); 
-        }, 2000);
+      if (response.status === 201 || response.status === 200) {
+        toast.success("Admin Registration Successful!");
+        
+        // Form Reset
+        setFormData({
+            designation: "Gram Pradhan",
+            assignedWard: "",
+            category: "General Administration",
+            Start_time: "",
+            End_time: "",
+            location: "",
+            ComplaintAdminKey: ""
+        });
+        setCertificate(null);
+        setPreview(null);
+
+        // Redirect
+        setTimeout(() => navigate("/complaint/admin/login"), 2000);
       }
     } catch (error) {
+      console.error("Admin Reg Error:", error);
       const errorMsg = error.response?.data?.message || "Registration Failed";
-      toast.error(errorMsg);
+      
+      if (error.response?.status === 401) {
+        toast.error("Authentication Error: Please login to the main portal first.");
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop')] bg-cover bg-center relative p-4">
-      <div className="absolute inset-0 bg-red-950/90 backdrop-blur-sm"></div>
-      <Toaster position="top-center" />
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-40"></div>
+      <div className="absolute -top-20 -right-20 w-96 h-96 bg-blue-900/20 rounded-full blur-[100px]"></div>
+      <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-red-900/10 rounded-full blur-[100px]"></div>
 
-      <motion.div
+      <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#fff' } }} />
+
+      <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="relative z-10 w-full max-w-5xl bg-white/5 border border-red-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row backdrop-blur-md"
+        className="relative z-10 w-full max-w-6xl bg-slate-900/80 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row backdrop-blur-xl"
       >
-        {/* Left Side: Admin Visuals */}
-        <div className="md:w-1/3 bg-gradient-to-b from-black to-red-900/40 p-8 text-white flex flex-col justify-between border-r border-red-500/20">
+        
+        {/* Left Side: Branding & Info */}
+        <div className="lg:w-1/3 bg-gradient-to-b from-slate-900 to-slate-950 p-10 border-r border-slate-800 flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-3 mb-6">
-              <Siren className="w-10 h-10 text-red-500 animate-pulse" />
-              <h1 className="text-2xl font-bold tracking-widest text-red-100">ADMIN HQ</h1>
+            <div className="flex items-center gap-3 mb-8">
+               <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/50">
+                  <Building2 className="text-white" size={24} />
+               </div>
+               <div>
+                  <h1 className="text-2xl font-bold text-white tracking-wide">ADMIN PORTAL</h1>
+                  <p className="text-xs text-slate-400 uppercase tracking-widest">Official Registration</p>
+               </div>
             </div>
-            <p className="text-red-200/60 text-sm leading-relaxed font-mono">
-              // COMPLAINT AUTHORITY<br/>
-              // CREDENTIAL VERIFICATION<br/>
-              // SECURE UPLINK
+            
+            <h2 className="text-3xl font-bold text-slate-200 mb-4">
+              Manage Public <br/>
+              <span className="text-red-500">Grievances.</span>
+            </h2>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Register here to become an authorized Complaint Administrator. You will be responsible for resolving issues in your ward or department.
             </p>
           </div>
-          
-          <div className="mt-8 bg-red-900/20 p-4 rounded-xl border border-red-500/20">
-            <h3 className="text-red-400 font-bold mb-2 flex items-center gap-2"><FileBadge size={16}/> Certificate</h3>
-            <p className="text-xs text-gray-400">Upload your government or department authorization certificate for validation.</p>
+
+          <div className="bg-slate-800/50 p-5 rounded-2xl border border-slate-700 space-y-4">
+             <div className="flex gap-3">
+                <ShieldCheck className="text-green-400 shrink-0" size={20} />
+                <div>
+                   <h4 className="text-sm font-bold text-slate-200">Official Verification</h4>
+                   <p className="text-xs text-slate-500">Upload valid ID proof for approval.</p>
+                </div>
+             </div>
+             <div className="flex gap-3">
+                <Key className="text-blue-400 shrink-0" size={20} />
+                <div>
+                   <h4 className="text-sm font-bold text-slate-200">Secure Access</h4>
+                   <p className="text-xs text-slate-500">Use a strong PIN for daily login.</p>
+                </div>
+             </div>
           </div>
         </div>
 
-        {/* Right Side: Form */}
-        <div className="md:w-2/3 p-8 bg-black/60">
-          <h2 className="text-2xl font-bold text-white mb-6 border-b border-white/10 pb-2">Register Authority</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Right Side: Registration Form */}
+        <div className="lg:w-2/3 p-8 lg:p-12 overflow-y-auto max-h-[90vh]">
+          <div className="flex justify-between items-center mb-8">
+             <h2 className="text-xl font-bold text-white flex items-center gap-2">
+               <UserCheck className="text-red-500" /> Officer Details
+             </h2>
+             <span className="text-xs bg-red-500/10 text-red-400 px-3 py-1 rounded-full border border-red-500/20">
+               Official Use Only
+             </span>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Row 1: Category & Location */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400 ml-1">Department Category</label>
-                <div className="relative group">
-                  <Shield className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-400" size={18} />
-                  <input type="text" name="category" value={formData.category} onChange={handleInputChange} placeholder="e.g. Traffic, Cyber, Civil" className="w-full bg-white/5 border border-red-500/20 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-red-500 transition-all placeholder:text-gray-600" required />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400 ml-1">Jurisdiction / Location</label>
-                <div className="relative group">
-                  <MapPin className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-400" size={18} />
-                  <input type="text" name="location" value={formData.location} onChange={handleInputChange} placeholder="Area of Operation" className="w-full bg-white/5 border border-red-500/20 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-red-500 transition-all placeholder:text-gray-600" required />
-                </div>
-              </div>
-            </div>
-
-            {/* Row 2: Times */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400 ml-1">Shift Start</label>
-                <div className="relative group">
-                  <Clock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-400" size={18} />
-                  <input type="time" name="Start_time" value={formData.Start_time} onChange={handleInputChange} className="w-full bg-white/5 border border-red-500/20 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-red-500 transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" required />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400 ml-1">Shift End</label>
-                <div className="relative group">
-                  <Clock className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-400" size={18} />
-                  <input type="time" name="End_time" value={formData.End_time} onChange={handleInputChange} className="w-full bg-white/5 border border-red-500/20 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-red-500 transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" required />
-                </div>
-              </div>
-            </div>
-
-            {/* Key */}
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400 ml-1">Admin Access Key</label>
-              <div className="relative group">
-                <Key className="absolute left-3 top-3.5 text-gray-500 group-focus-within:text-red-400" size={18} />
-                <input type="text" name="ComplaintAdminKey" value={formData.ComplaintAdminKey} onChange={handleInputChange} placeholder="Unique Security Code" className="w-full bg-white/5 border border-red-500/20 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-red-500 transition-all placeholder:text-gray-600 font-mono tracking-wider" required />
-              </div>
-            </div>
-
-            {/* File Upload Area */}
-            <div className="space-y-1">
-               <label className="text-xs text-gray-400 ml-1">Authorization Certificate</label>
-               <div className={`relative border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-all ${preview ? 'border-red-500/50 bg-red-900/10' : 'border-gray-600 hover:border-red-400/50 bg-white/5'}`}>
-                 
-                 {preview ? (
-                   <div className="relative w-full flex items-center justify-center">
-                     <div className="flex items-center gap-2 text-red-300">
-                        <CheckCircle size={20} />
-                        <span className="text-sm font-semibold truncate max-w-[200px]">{file.name}</span>
-                     </div>
-                     <button type="button" onClick={removeFile} className="ml-4 bg-red-500/20 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all">
-                       <X size={16} />
-                     </button>
-                   </div>
-                 ) : (
-                   <>
-                     <input type="file" name="complaintAdmin_certificate" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                     <Upload className="text-gray-400 mb-2" size={28} />
-                     <p className="text-sm text-gray-300">Upload Certificate (PDF/Image)</p>
-                   </>
-                 )}
+            {/* 1. Role & Ward */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Designation / Post</label>
+                  <select 
+                    name="designation" 
+                    value={formData.designation} 
+                    onChange={handleChange}
+                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 outline-none focus:border-red-500 transition-colors text-sm"
+                  >
+                    <option>Gram Pradhan</option>
+                    <option>Ward Member</option>
+                    <option>Sachiv (Secretary)</option>
+                    <option>BDO Officer</option>
+                    <option>Other</option>
+                  </select>
+               </div>
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Assigned Ward / Area</label>
+                  <input 
+                    type="text" 
+                    name="assignedWard" 
+                    value={formData.assignedWard} 
+                    onChange={handleChange}
+                    placeholder="e.g. Ward No. 5" 
+                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 outline-none focus:border-red-500 transition-colors text-sm"
+                    required
+                  />
                </div>
             </div>
 
-            <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} disabled={loading} className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg transition-all mt-4 ${loading ? "bg-gray-700 cursor-not-allowed" : "bg-gradient-to-r from-red-700 to-red-900 hover:shadow-red-500/30"}`}>
-              {loading ? "Verifying Credentials..." : "Register System"}
-            </motion.button>
-            
+            {/* 2. Department & Location */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Department Category</label>
+                  <select 
+                    name="category" 
+                    value={formData.category} 
+                    onChange={handleChange}
+                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 outline-none focus:border-red-500 transition-colors text-sm"
+                  >
+                    <option>General Administration</option>
+                    <option>Public Works (PWD)</option>
+                    <option>Water Supply</option>
+                    <option>Sanitation & Health</option>
+                    <option>Education</option>
+                  </select>
+               </div>
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Office Location</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 text-slate-500" size={16} />
+                    <input 
+                      type="text" 
+                      name="location" 
+                      value={formData.location} 
+                      onChange={handleChange}
+                      placeholder="e.g. Panchayat Bhawan" 
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-sm"
+                      required
+                    />
+                  </div>
+               </div>
+            </div>
+
+            {/* 3. Timings & Key */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Start Time</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-3 text-slate-500" size={16} />
+                    <input 
+                      type="time" 
+                      name="Start_time" 
+                      value={formData.Start_time} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-sm"
+                      required
+                    />
+                  </div>
+               </div>
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">End Time</label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-3 text-slate-500" size={16} />
+                    <input 
+                      type="time" 
+                      name="End_time" 
+                      value={formData.End_time} 
+                      onChange={handleChange}
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-sm"
+                      required
+                    />
+                  </div>
+               </div>
+               <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase ml-1">Secret Key</label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-3 text-slate-500" size={16} />
+                    {/* 👇 SECURITY FIX: type="password" */}
+                    <input 
+                      type="password" 
+                      name="ComplaintAdminKey" 
+                      value={formData.ComplaintAdminKey} 
+                      onChange={handleChange}
+                      placeholder="Create Password" 
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-3 pl-10 outline-none focus:border-red-500 transition-colors text-sm font-mono tracking-widest"
+                      required
+                    />
+                  </div>
+               </div>
+            </div>
+
+            {/* 4. Certificate Upload */}
+            <div className="space-y-2 pt-2">
+               <label className="text-xs font-bold text-slate-400 uppercase ml-1">Upload ID / Certificate</label>
+               <div className="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center hover:bg-slate-800/50 transition-colors relative cursor-pointer group">
+                  <input 
+                    type="file" 
+                    onChange={handleFileChange} 
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    accept="image/*,.pdf" 
+                  />
+                  {preview ? (
+                     <div className="relative h-24 flex items-center justify-center">
+                        {/* Check if it's likely an image by preview string or extension logic (simplified here) */}
+                        {certificate?.type.startsWith("image/") ? (
+                             <img src={preview} alt="Preview" className="h-full object-contain rounded-md shadow-lg" />
+                        ) : (
+                            <div className="flex items-center gap-2 text-slate-200 bg-slate-800 p-3 rounded-lg border border-slate-600">
+                                <FileText className="text-red-400" />
+                                <span className="text-sm truncate max-w-[150px]">{certificate?.name}</span>
+                            </div>
+                        )}
+                        
+                        <button 
+                            onClick={removeFile}
+                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 z-20"
+                        >
+                            <X size={14} />
+                        </button>
+                     </div>
+                  ) : (
+                     <div className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-slate-300">
+                        <div className="p-3 bg-slate-800 rounded-full">
+                           <UploadCloud size={24} />
+                        </div>
+                        <p className="text-xs">Drag & drop or click to upload ID proof</p>
+                     </div>
+                  )}
+               </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="pt-4">
+               <button 
+                 type="submit" 
+                 disabled={loading}
+                 className="w-full bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+               >
+                 {loading ? <Loader2 className="animate-spin" /> : <>REGISTER OFFICIAL <ArrowRight size={18} /></>}
+               </button>
+            </div>
+
             <div className="text-center">
-              <Link to="/complaint/admin/login" className="text-red-400 text-sm hover:underline hover:text-red-300">Existing Authority? Login</Link>
+               <p className="text-slate-500 text-sm">
+                 Already have an account? <Link to="/complaint/admin/login" className="text-red-400 hover:text-red-300 font-bold hover:underline">Officer Login</Link>
+               </p>
             </div>
 
           </form>

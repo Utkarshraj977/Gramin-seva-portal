@@ -1,182 +1,288 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
+import { User } from "../models/user.model.js";
+import { ComplaintUser } from "../models/complaintUser.model.js"; 
+import { ComplaintAdmin } from "../models/complaintAdmin.model.js"; 
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { ComplaintUser } from "../models/complaintUser.model.js";
-import { ComplaintAdmin } from "../models/complaintAdmin.model.js";
 
-//ComplaintUser Register
+// ==================================================
+// 1. REGISTER COMPLAINT USER (First Time Setup & First Complaint)
+// ==================================================
+const generateAccessAndRefreshTokens = async(userId) => {
+    const user = await User.findById(userId)
+    const accessToken = user.generateAccessToken()
+    const refreshToken = user.generateRefreshToken()
+
+    user.refreshToken = refreshToken
+    await user.save({ validateBeforeSave: false })
+
+    return { accessToken, refreshToken }
+}
+
+// ==================================================
+// 1. REGISTER COMPLAINT USER (With Auto-Login & Cookies)
+// ==================================================
 const userregister = asyncHandler(async (req, res) => {
-    const {message,ComplaintUserKey, location } = req.body;
+    const { title, category, message, location, ComplaintUserKey } = req.body;
 
-    if ([ message,ComplaintUserKey, location].some((field) => typeof field !== "string" || field.trim() === "")) {
-        throw new ApiError(400, "All fields are reqired");
+    if ([title, category, message, location, ComplaintUserKey].some((field) => !field || field.trim() === "")) {
+        throw new ApiError(400, "All fields are required (Title, Category, Message, Location, Key)");
     }
-    const user = req.user?._id;
 
-    if (!user) throw new ApiError(404, "User not found")
     if (!/^\d{6}$/.test(ComplaintUserKey)) {
-        throw new ApiError(400, "ComplaintUserKey must be exactly 6 digits (numbers only)");
+        throw new ApiError(400, "Security PIN must be a 6-digit number (e.g., 123456)");
     }
-    const existeduser = await ComplaintUser.findOne({ userInfo: user })
-    if (existeduser) throw new ApiError(409, "complaint user is allready registered")
 
-    const createdUser = await ComplaintUser.create(
-        {
-            message,
-            isPatient: true,
-            ComplaintUserKey,
-            location,
-            isComplaintUser:true,
-            userInfo: user
+    const user = await User.findById(req.user?._id);
+    if (!user) throw new ApiError(404, "User not found");
+
+    // Check if user has already filed a complaint before
+    const existingComplaintUser = await ComplaintUser.findOne({ userInfo: req.user._id });
+    if (existingComplaintUser) {
+        throw new ApiError(409, "You are already registered. Please use 'Add Complaint' to file more.");
+    }
+
+    let complaintImage = { url: "", public_id: "" };
+    
+    // SAFE UPLOAD CHECK
+    if (req.files?.complaintImage?.[0]?.path) {
+        const localPath = req.files.complaintImage[0].path;
+        const uploaded = await uploadOnCloudinary(localPath);
+        if (uploaded) {
+            complaintImage = { url: uploaded.url, public_id: uploaded.public_id };
         }
-    )
-    const fulluser = await createdUser.populate("userInfo", "username fullname coverImage email phone avatar");
-    fulluser.ComplaintUserKey=null;
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { ComplaintUser: fulluser },
-                "ComplaintUser registered succesfully"
-            )
-        );
-})
+    }
 
-//ComplaintUser Login
+    const newComplaint = await ComplaintUser.create({
+        userInfo: req.user._id,
+        ComplaintUserKey, 
+        category,
+        title,
+        message,
+        location,
+        complaintImage,
+        status: "Pending",
+        isComplaintUser: true,
+        myConnections: [] 
+    });
+
+    if (!newComplaint) {
+        throw new ApiError(500, "Server Error: Registration failed.");
+    }
+
+    // ✅ FIX: Generate Tokens & Set Cookies immediately after Register
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+    const options = {
+        httpOnly: true,
+        secure: false, // Localhost fix
+        sameSite: "lax",
+        path: "/"
+    };
+
+    return res
+        .status(201)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(new ApiResponse(201, newComplaint, "Registration & Complaint Filed Successful!"));
+});
+
+// ==================================================
+// 2. LOGIN USER (With Cookie Logic)
+// ==================================================
 const UserLogin = asyncHandler(async (req, res) => {
     const { ComplaintUserKey } = req.body;
-    const user = req.user?._id;
-    if (!user) throw new ApiError(404, "User not found")
-    if (!ComplaintUserKey) throw new ApiError(401, "ComplaintUser key required for login")
+    
+    if (!ComplaintUserKey) throw new ApiError(400, "Security PIN required");
 
-    const complaintuser = await ComplaintUser.findOne({ userInfo: user })
-        .populate("userInfo", "username fullname coverImage email phone avatar");
+    // Find ANY complaint by this user to check the key
+    const complaintUser = await ComplaintUser.findOne({ userInfo: req.user?._id });
 
-    if (!complaintuser) throw new ApiError(401, "unauthorized access")
+    if (!complaintUser) throw new ApiError(404, "User not registered. Please register first.");
 
-    const isKeyCorrect = await complaintuser.isKeyCorrect(ComplaintUserKey)
-    if (!isKeyCorrect) throw new ApiError(401, "Invalid ComplaintUser credentials")
-    //ComplaintUser.ComplaintUserKey = undefined; //remove to send the key in the response
+    const isKeyValid = await complaintUser.isKeyCorrect(ComplaintUserKey);
+    
+    if (!isKeyValid) throw new ApiError(401, "Invalid Security PIN");
+
+    // ✅ FIX: Generate New Tokens
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(req.user._id);
+
+    // ✅ FIX: Set Cookies
+    const options = {
+        httpOnly: true,
+        secure: false, // Localhost fix
+        sameSite: "lax",
+        path: "/"
+    };
 
     return res
         .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                { complaintuser },
-                "complaint user login successful"
-            )
-        )
-
-})
-
-//selectedpatient
-const selecteduser = asyncHandler(async (req, res) => {
-    const user = req.user?._id;
-    if (!user) throw new ApiError(404, "user not found")
-
-    const complaintuser = await ComplaintUser.findOne({ userInfo: user }).populate("userInfo", "username fullname coverImage email phone avatar")
-    if (!complaintuser) throw new ApiError(404, "ComplaintUser profile not found. Please register as a ComplaintUser first.");
-
-    const admin = req.params.id;
-    const ComplaintUser = await ComplaintUser.findByIdAndUpdate(
-        admin,
-        { $addToSet: { ComplaintUser: complaintuser } },
-        { new: true }
-    )
-    .select("-ComplaintUserKey")  // hide Key
- 
-    if (!ComplaintUser) throw new ApiError(404, "admin not found");
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                ComplaintUser,
-                "ComplaintUser is added in complaintAdmin"
-            )
-        )
-})
-
-//get user by id
-const getuserbyid=asyncHandler(async(req,res)=>{
-    const user=req.user?._id;
-    if(!user) throw new ApiError(400,"user not found")
-    
-    const complaintuser=await ComplaintUser.findOne({userInfo:user})
-    .populate("userInfo","username fullname coverImage email phone avatar")    
-    complaintuser.ComplaintUserKey=undefined;
-    if(!complaintuser) throw new ApiError(404,"complaint User not found")
-
-    return res
-         .status(201)    
-         .json(
-            new ApiResponse(200,complaintuser,"complaint user fetched succesfullly")
-         )
-
-})
-
-const requestConnection = asyncHandler(async (req, res) => {
-    const userId = req.user?._id;
-    const adminId = req.params.id; // The Admin ID user wants to connect to
-
-    // Find the User's Complaint Profile
-    const complaintUser = await ComplaintUser.findOne({ userInfo: userId });
-    if (!complaintUser) throw new ApiError(404, "Please register as a Complaint User first.");
-
-    // Update ComplaintUser with the target Admin and set status to PENDING
-    // We assume ComplaintUser model has fields: assignedAdmin, requestStatus
-    complaintUser.assignedAdmin = adminId;
-    complaintUser.requestStatus = "pending"; 
-    await complaintUser.save();
-
-    // OPTIONAL: Push to Admin's pending list if your schema relies on arrays
-    // But it's better to just query ComplaintUser by assignedAdmin later
-    
-    return res.status(200).json(
-        new ApiResponse(200, complaintUser, "Connection request sent to Authority.")
-    );
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(new ApiResponse(200, { success: true, accessToken, refreshToken }, "Login Successful"));
 });
 
-// 2. Admin ACCEPTS Request (New)
-const acceptRequest = asyncHandler(async (req, res) => {
-    const { complaintUserId } = req.body; // The ID of the ComplaintUser (Citizen)
+// ==================================================
+// 3. ADD NEW COMPLAINT (For Existing Users)
+// ==================================================
+const fileComplaint = asyncHandler(async (req, res) => {
+    const { category, title, message, location, ComplaintUserKey } = req.body;
+
+    if ([category, title, message, location, ComplaintUserKey].some((f) => !f || f.trim() === "")) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    // Check if user exists (Must have at least one previous complaint/registration)
+    // We sort by createdAt to get the FIRST document (Original Registration) to match Key accurately
+    const existingUser = await ComplaintUser.findOne({ userInfo: req.user?._id }).sort({ createdAt: 1 });
     
-    const complaintUser = await ComplaintUser.findById(complaintUserId);
-    if (!complaintUser) throw new ApiError(404, "Complaint User not found");
+    if (!existingUser) throw new ApiError(404, "Please register first");
 
-    complaintUser.requestStatus = "accepted";
-    await complaintUser.save();
+    // Verify PIN from the existing record
+    const isKeyValid = await existingUser.isKeyCorrect(ComplaintUserKey);
+    if (!isKeyValid) throw new ApiError(401, "Invalid Security PIN");
 
-    // Now we add it to the Admin's "Active List" for record keeping if needed
-    const admin = await ComplaintAdmin.findById(complaintUser.assignedAdmin);
-    if(admin) {
-        // Ensure we don't duplicate
-        const isAlreadyAdded = admin.ComplaintUser.some(id => id.toString() === complaintUserId);
-        if (!isAlreadyAdded) {
-            admin.ComplaintUser.push(complaintUser._id);
-            await admin.save();
+    let complaintImage = { url: "", public_id: "" };
+    if (req.files?.complaintImage?.[0]?.path) {
+        const uploaded = await uploadOnCloudinary(req.files.complaintImage[0].path);
+        if (uploaded) {
+            complaintImage = { url: uploaded.url, public_id: uploaded.public_id };
         }
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, complaintUser, "Request Accepted. Chat enabled.")
-    );
+    // Important: Copy connections from existing user profile to new complaint 
+    // taaki har document mein connections sync rahein (Optimization logic)
+    const currentConnections = existingUser.myConnections || [];
+
+    const newComplaint = await ComplaintUser.create({
+        userInfo: req.user._id,
+        ComplaintUserKey, // Storing key again (Redundant but works for your design)
+        category,
+        title,
+        message,
+        location,
+        complaintImage,
+        status: "Pending",
+        isComplaintUser: true,
+        myConnections: currentConnections 
+    });
+
+    return res.status(201).json(new ApiResponse(201, newComplaint, "New Complaint Filed Successfully"));
 });
 
-const getMyStatus = asyncHandler(async (req, res) => {
+// ==================================================
+// 4. GET MY DASHBOARD (History & Stats)
+// ==================================================
+const getUserDashboard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
-    // Find my complaint profile and populate the admin I am connected to
-    const myProfile = await ComplaintUser.findOne({ userInfo: userId }).populate("assignedAdmin");
-    
-    if(!myProfile) return res.status(200).json(new ApiResponse(200, null, "No profile"));
 
-    return res.status(200).json(
-        new ApiResponse(200, myProfile, "Fetched status")
-    );
+    const myComplaints = await ComplaintUser.find({ userInfo: userId })
+        .sort({ createdAt: -1 });
+
+    // Use the latest document or the first one for connections
+    const userDocWithConnections = await ComplaintUser.findOne({ userInfo: userId });
+
+    const total = myComplaints.length;
+    const pending = myComplaints.filter(c => c.status === "Pending").length;
+    const resolved = myComplaints.filter(c => c.status === "Resolved").length;
+    const rejected = myComplaints.filter(c => c.status === "Rejected").length;
+
+    const dashboardData = {
+        complaints: myComplaints,
+        stats: { total, pending, resolved, rejected },
+        profile: req.user, // Main User Data
+        connections: userDocWithConnections ? userDocWithConnections.myConnections : []
+    };
+
+    return res.status(200).json(new ApiResponse(200, dashboardData, "Dashboard Data Fetched"));
 });
 
+// ==================================================
+// 5. PUBLIC FEED
+// ==================================================
+const getAllPublicComplaints = asyncHandler(async (req, res) => {
+    const complaints = await ComplaintUser.find({})
+        .populate("userInfo", "fullName avatar")
+        .sort({ createdAt: -1 })
+        .limit(20);
 
-export { requestConnection, acceptRequest, getMyStatus, userregister, UserLogin, getuserbyid };
+    return res.status(200).json(new ApiResponse(200, complaints, "Public Feed Fetched"));
+});
+
+// ==================================================
+// 6. DELETE COMPLAINT (Withdraw)
+// ==================================================
+const deleteComplaint = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    
+    const complaint = await ComplaintUser.findOne({ _id: id, userInfo: req.user._id });
+    if (!complaint) throw new ApiError(404, "Complaint not found");
+
+    if (complaint.status !== "Pending") {
+        throw new ApiError(400, "Cannot withdraw complaint after it is processed");
+    }
+
+    await ComplaintUser.findByIdAndDelete(id);
+
+    return res.status(200).json(new ApiResponse(200, null, "Complaint Withdrawn"));
+});
+
+// ==================================================
+// 7. GET DETAILS
+// ==================================================
+const getComplaintDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const complaint = await ComplaintUser.findById(id).populate("userInfo", "fullName email");
+    if (!complaint) throw new ApiError(404, "Not Found");
+    return res.status(200).json(new ApiResponse(200, complaint, "Details Fetched"));
+});
+
+// ==================================================
+// 8. CONNECT TO ADMIN
+// ==================================================
+const connectToAdmin = asyncHandler(async (req, res) => {
+    const { adminId } = req.params;
+    const userId = req.user._id;
+
+    // 1. Check if Admin exists
+    const admin = await ComplaintAdmin.findById(adminId);
+    if (!admin) throw new ApiError(404, "Official not found");
+
+    // 2. Check if already applied (in Admin's list)
+    // admin.connectionRequests undefined ho sakta hai agar schema naya hai, so default [] check
+    const requests = admin.connectionRequests || [];
+    const existingRequest = requests.find(
+        (req) => req.user.toString() === userId.toString()
+    );
+    
+    if (existingRequest) throw new ApiError(400, "Request already sent or status is pending");
+
+    // 3. Update Admin's List
+    admin.connectionRequests.push({ user: userId, status: "Pending" });
+    await admin.save();
+
+    // 4. Update User's List (Update ALL documents for this user to keep in sync)
+    // Kyunki tumhare design me User ke pass multiple documents hain
+    await ComplaintUser.updateMany(
+        { userInfo: userId },
+        { 
+            $push: { 
+                myConnections: { admin: adminId, status: "Pending" } 
+            } 
+        }
+    );
+
+    return res.status(200).json(new ApiResponse(200, {}, "Request Sent Successfully"));
+});
+
+export {
+    userregister,
+    UserLogin,
+    fileComplaint,
+    getUserDashboard,
+    getAllPublicComplaints,
+    deleteComplaint,
+    getComplaintDetails,
+    connectToAdmin
+};
