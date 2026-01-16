@@ -8,6 +8,7 @@ const app = express()
 
 // 3. Create HTTP server from Express app
 const server = createServer(app)
+app.set("trust proxy", 1);
 
 // 4. Initialize Socket.io
 const io = new Server(server, {
