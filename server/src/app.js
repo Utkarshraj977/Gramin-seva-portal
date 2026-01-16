@@ -13,7 +13,7 @@ const server = createServer(app)
 const io = new Server(server, {
     cors: {
         origin: process.env.CORS_ORIGIN, // Must match your Frontend URL
-        methods: ["GET", "POST"],
+        methods: ["GET", "POST","PATCH","DELETE"],
         credentials: true
     }
 })
