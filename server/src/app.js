@@ -13,7 +13,10 @@ app.set("trust proxy", 1);
 // 4. Initialize Socket.io
 const io = new Server(server, {
     cors: {
-        origin: process.env.CORS_ORIGIN, // Must match your Frontend URL
+        origin: [
+            "http://localhost:5173",          // For your local testing
+            process.env.CORS_ORIGIN           // For your deployed website
+        ],
         methods: ["GET", "POST"],
         credentials: true
     }
