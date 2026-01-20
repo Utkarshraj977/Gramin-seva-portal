@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { 
   Building2, MapPin, Clock, Search, ShieldCheck, 
   Phone, Mail, UserCircle
 } from "lucide-react";
+
+// ✅ Import Service
+import { complaintAdmin } from "../services/api";
 
 const ComplaintOfficials = () => {
   const [officials, setOfficials] = useState([]);
@@ -14,9 +16,12 @@ const ComplaintOfficials = () => {
   useEffect(() => {
     const fetchOfficials = async () => {
       try {
-        // Backend se data la rahe hain
-        const res = await axios.get("http://localhost:8000/api/v1/ComplaintAdmin/public/officials");
-        setOfficials(res.data.data);
+        // ✅ Use Service: complaintAdmin.get_all_officials()
+        // This is a public route, so it doesn't require authentication cookies
+        const res = await complaintAdmin.get_all_officials();
+        
+        // api.js returns response.data. The actual list is usually in .data
+        setOfficials(res.data || []);
       } catch (error) {
         console.error("Error fetching officials:", error);
       } finally {
@@ -60,7 +65,10 @@ const ComplaintOfficials = () => {
 
       {/* Grid List */}
       {loading ? (
-         <div className="text-center py-20">Loading Officials...</div>
+         <div className="text-center py-20 flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            <p className="text-slate-500">Loading Officials...</p>
+         </div>
       ) : (
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOfficials.length > 0 ? (
@@ -68,7 +76,7 @@ const ComplaintOfficials = () => {
               <AdminCard key={admin._id} data={admin} />
             ))
           ) : (
-            <div className="col-span-full text-center text-gray-400 py-10">
+            <div className="col-span-full text-center text-gray-400 py-10 bg-white rounded-2xl border border-dashed border-gray-200">
               No officials found matching your search.
             </div>
           )}

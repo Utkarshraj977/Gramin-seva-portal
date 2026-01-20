@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, ShieldAlert, LogIn } from "lucide-react";
+import { user } from "../services/api";
 
 export default function UpdateAccount() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function UpdateAccount() {
     }
   }, []);
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setMessage("");
@@ -41,29 +42,18 @@ export default function UpdateAccount() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        "http://localhost:8000/api/v1/users/update-account",
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ fullName, email }),
-        }
-      );
+      // 1. Axios call (Response already JSON parsed hoti hai)
+      // 'response' variable mein seedha data aayega
+      const response = await user.update_account({ fullName, email });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Update failed");
-      }
-
-      localStorage.setItem("userData", JSON.stringify(data.data));
+      localStorage.setItem("userData", JSON.stringify(response.data)); 
+      
       setMessage("Account details updated successfully ✅");
 
     } catch (err) {
-      setError(err.message);
+      console.error(err);
+      // Axios error message nikalne ka sahi tarika
+      setError(err.response?.data?.message || "Update failed");
     } finally {
       setLoading(false);
     }

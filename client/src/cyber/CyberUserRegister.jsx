@@ -1,9 +1,11 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Key, MessageSquare, Send, Shield, Terminal, Calendar } from "lucide-react";
+import { MapPin, Key, MessageSquare, Send, Shield, Terminal, Calendar, Clock, Loader2 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { cyberUser } from "../services/api";
 
 const CyberUserRegister = () => {
   const [loading, setLoading] = useState(false);
@@ -26,7 +28,6 @@ const CyberUserRegister = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Basic Validation
     if (!formData.cyberUserKey.trim()) {
       toast.error("Cyber User Key is required");
       setLoading(false);
@@ -34,13 +35,10 @@ const CyberUserRegister = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/cyberuser/register", // Endpoint based on your router snippet
-        formData,
-        { withCredentials: true }
-      );
+      // ✅ Use Service
+      const response = await cyberUser.register(formData);
 
-      if (response.status === 201) {
+      if (response) {
         toast.success("Cyber Session Registered Successfully!");
         
         // Reset Form
@@ -52,7 +50,6 @@ const CyberUserRegister = () => {
           cyberUserKey: "",
         });
 
-        // Redirect logic (Adjust route as needed)
         setTimeout(() => {
             navigate("/cyber/user/login"); 
         }, 2000);
@@ -71,7 +68,6 @@ const CyberUserRegister = () => {
   };
 
   return (
-    // Changed background image to something more "Tech/Cyber" themed
     <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center relative p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
       <Toaster position="top-center" />
@@ -174,7 +170,7 @@ const CyberUserRegister = () => {
             </div>
 
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={loading} className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all mt-4 ${loading ? "bg-gray-700 cursor-not-allowed" : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:shadow-emerald-500/30"}`}>
-              {loading ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <>Register Cyber User <Send size={18} /></>}
+              {loading ? <Loader2 className="animate-spin" /> : <>Register Cyber User <Send size={18} /></>}
             </motion.button>
 
             {/* Links */}

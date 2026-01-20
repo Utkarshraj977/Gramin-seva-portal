@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 // Note: Ensure ChatRoom is available or comment this out if not used
@@ -9,6 +8,9 @@ import {
   Car, Loader2, Zap, MessageSquare, X, Navigation,
   XCircle
 } from "lucide-react";
+
+// ✅ Import Centralized Services
+import { travellerUser, travellerAdmin } from "../services/api";
 
 // --- HELPER: Safe ID Extraction ---
 const getUserId = (userOrId) => {
@@ -21,7 +23,7 @@ const TravelUserDashboard = () => {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [travellerProfile, setTravellerProfile] = useState(null); // Stores the full traveller doc
+  const [travellerProfile, setTravellerProfile] = useState(null); 
 
   // Active Ride & Chat
   const [activeRide, setActiveRide] = useState(null);
@@ -39,28 +41,25 @@ const TravelUserDashboard = () => {
   const fetchData = async () => {
     try {
       // A. Get Current Traveller User
-      // matches route: router.route("/user").get(verifyJWT, travelleruser)
-      const userRes = await axios.get('http://localhost:8000/api/v1/traveller/user', { withCredentials: true });
+      // ✅ Use Service: travellerUser.get_details()
+      const userRes = await travellerUser.get_details();
       
-      const fullProfile = userRes.data.data;
+      const fullProfile = userRes.data; // api.js returns response.data
       setTravellerProfile(fullProfile);
       
-      // We set currentUser to the nested userInfo object so ID matching works with admin lists
       if (fullProfile && fullProfile.userInfo) {
           setCurrentUser(fullProfile.userInfo);
       }
 
       // B. Get Drivers (Admins)
-      // matches route: /api/v1/admin/all-travelling-admin (Assuming this exists from your admin controller)
-      // If you are using the filter route, ensure that controller exists too.
-      let url = "http://localhost:8000/api/v1/traveller/allTravelAdmin"; 
-       
-      const response = await axios.get(url, { withCredentials: true });
-      // Handle different response structures (pagination vs array)
-      const driversList = response.data.data.Alladmin || response.data.data || [];
+      // ✅ Use Service: travellerAdmin.get_all_admins()
+      // Note: We use the admin service to fetch the list, assuming it's accessible to users
+      const driversRes = await travellerAdmin.get_all_admins();
+      
+      const driversList = driversRes.data?.Alladmin || driversRes.data || [];
       const validDrivers = Array.isArray(driversList) ? driversList : [];
       
-      // Apply Client-side category filter if backend filter isn't set up yet
+      // Apply Client-side category filter
       const filteredDrivers = filterCategory === "All" 
         ? validDrivers 
         : validDrivers.filter(d => d.category === filterCategory || d.CarDetails?.category === filterCategory);
@@ -92,10 +91,7 @@ const TravelUserDashboard = () => {
 
     } catch (error) {
       console.error("Sync Error:", error);
-      // If 404/401, likely not logged in or registered
-      if (error.response?.status === 401 || error.response?.status === 404) {
-         // handle redirect if needed
-      }
+      // Optional: Handle 401 Redirects here
     } finally {
       setLoading(false);
     }
@@ -126,10 +122,10 @@ const TravelUserDashboard = () => {
     }));
 
     try {
-      // FIXED: Uses POST and matches router.route("/setuserintoadmin/:id")
-      await axios.post(`http://localhost:8000/api/v1/traveller/setuserintoadmin/${adminId}`, {}, { withCredentials: true });
+      // ✅ Use Service: travellerUser.request_ride(adminId)
+      await travellerUser.request_ride(adminId);
       toast.success("Request Sent!");
-      fetchData(); // Refresh to ensure data consistency
+      fetchData(); 
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to join");
       fetchData(); // Revert on error
@@ -163,11 +159,10 @@ const TravelUserDashboard = () => {
     }
 
     try {
-      // FIXED: Uses POST and matches router.route("/cancelride")
-      // We don't need ID in URL because backend finds ride via User Token
-      await axios.post(`http://localhost:8000/api/v1/traveller/cancelride`, {}, { withCredentials: true });
+      // ✅ Use Service: travellerUser.cancel_ride()
+      await travellerUser.cancel_ride();
       toast.success("Ride cancelled");
-      fetchData(); // Ensure backend state is synced
+      fetchData(); 
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Cancellation failed");
@@ -345,7 +340,6 @@ const TravelUserDashboard = () => {
               <button onClick={() => setActiveChatDriver(null)} className="hover:bg-slate-100 p-2 rounded-full transition text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <div className="flex-1 overflow-hidden bg-slate-50 relative">
-               {/* Ensure ChatRoom exists in your project */}
                {ChatRoom ? (
                   <ChatRoom
                     roomId={[getUserId(activeChatDriver), getUserId(currentUser)].sort().join("-")}

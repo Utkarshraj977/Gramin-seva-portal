@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { 
   ShieldCheck, Key, Lock, Search, ArrowRight, Loader2, FileText 
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { complaintUser } from "../services/api";
 
 const ComplaintUserLogin = () => {
   const navigate = useNavigate();
@@ -23,22 +25,14 @@ const ComplaintUserLogin = () => {
     }
 
     try {
-      // Backend API Call
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/complaintuser/login",
-        { ComplaintUserKey: key },
-        {
-          withCredentials: true, // Main user auth verify karne ke liye
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      // ✅ Use Service: complaintUser.login()
+      // Note: Passing as object to match backend req.body.ComplaintUserKey
+      const response = await complaintUser.login({ ComplaintUserKey: key });
 
-      if (response.status === 200) {
-        toast.success("Access Granted! Redirecting...");
-        
-        // Redirect to User Dashboard
-        setTimeout(() => navigate("/complaint/user/dashboard"), 1500);
-      }
+      // If successful
+      toast.success("Access Granted! Redirecting...");
+      setTimeout(() => navigate("/complaint/user/dashboard"), 1500);
+
     } catch (error) {
       console.error("Login Error:", error);
       

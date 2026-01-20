@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
-import { BookOpen, MapPin, Key, MessageCircle, Layers, Award, ArrowRight, User } from "lucide-react";
+import { BookOpen, MapPin, Key, MessageCircle, Layers, Award, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { student } from "../services/api"; // ✅ Import Service
 
 const StudentRegister = () => {
   const [loading, setLoading] = useState(false);
@@ -12,9 +12,9 @@ const StudentRegister = () => {
   const [formData, setFormData] = useState({
     clas: "",
     subject: "",
-    board: "",
+    board: "", 
     location: "",
-    massage: "", // Matches backend spelling
+    massage: "", 
     StudentKey: "",
   });
 
@@ -34,13 +34,10 @@ const StudentRegister = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/education/student/register",
-        formData,
-        { withCredentials: true }
-      );
+      // ✅ Use student service
+      const response = await student.register_profile(formData);
 
-      if (response.status === 201) {
+      if (response) {
         toast.success("Student Profile Created!");
         setTimeout(() => {
           navigate("/education/user/login");

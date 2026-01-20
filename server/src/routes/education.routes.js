@@ -41,4 +41,4 @@ router.route("/student/remove/:username").delete(removeStudent);  // Remove/Dele
 router.route("/profile/update").patch(updateTeacherProfile);
 router.route("/dashboard/stats").get(getDashboardStats);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
-export default router;
+export default router; 

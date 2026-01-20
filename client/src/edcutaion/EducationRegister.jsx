@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { GraduationCap, BookOpen, Clock, MapPin, DollarSign, Upload, Key, X, CheckCircle } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { education } from "../services/api"; // ✅ Using centralized API
 
 const EducationRegister = () => {
   const [loading, setLoading] = useState(false);
@@ -62,17 +62,12 @@ const EducationRegister = () => {
     data.append("Education_certificate", file);
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/education/register",
-        data,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-          withCredentials: true,
-        }
-      );
+      // ✅ Use the education service
+      // Note: api.js returns response.data, so we don't check response.status here
+      const response = await education.register_profile(data);
 
-      if (response.status === 201) {
-        toast.success("Educator Profile Created!");
+      if (response) {
+        toast.success("Educator Profile Created Successfully!");
         setTimeout(() => {
           navigate("/education/admin/login");
         }, 2000);
@@ -211,8 +206,8 @@ const EducationRegister = () => {
                    <>
                      <input type="file" name="Education_certificate" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                      <div className="flex items-center gap-2 text-gray-500">
-                        <Upload size={20} />
-                        <span className="text-sm">Upload File</span>
+                       <Upload size={20} />
+                       <span className="text-sm">Upload File</span>
                      </div>
                    </>
                  )}

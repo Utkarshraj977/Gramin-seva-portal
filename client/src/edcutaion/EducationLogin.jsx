@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Key, School, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { education } from "../services/api";
 
 const EducationLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -21,23 +21,22 @@ const EducationLogin = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/education/login",
-        { EducatorKey },
-        { withCredentials: true }
-      );
+      const response = await education.login({ EducatorKey });
 
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Welcome back, Educator!");
-        
-        // Redirect to Education Dashboard
-        setTimeout(() => {
-          navigate("/education/admin/dashboard");
-        }, 1500);
+      toast.success("Welcome back, Educator!");
+      
+      if (response.data) {
+        localStorage.setItem("user", JSON.stringify(response.data));
       }
+
+      // Redirect to Education Dashboard
+      setTimeout(() => {
+        navigate("/education/admin/dashboard");
+      }, 1500);
+
     } catch (error) {
-      // Handles 409 "EducatorKey is wrong"
-      const errorMsg = error.response?.data?.message || "Invalid Key";
+      // Handles 409/401/500 errors thrown by Axios
+      const errorMsg = error.response?.data?.message || "Invalid Key or Server Error";
       toast.error(errorMsg);
     } finally {
       setLoading(false);

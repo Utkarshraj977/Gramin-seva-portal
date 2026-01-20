@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -7,8 +6,11 @@ import {
   Briefcase, Loader2, CheckCircle, MessageSquare, 
   ShieldCheck, X, User, Zap
 } from "lucide-react";
-// ✅ Import ChatRoom (Ensure path is correct)
+// ✅ Import ChatRoom
 import ChatRoom from '../Chat/ChatRoom'; 
+
+// ✅ Import Services
+import { cyberUser } from "../services/api";
 
 const CyberUserDashboard = () => {
   const [shops, setShops] = useState([]); 
@@ -20,26 +22,20 @@ const CyberUserDashboard = () => {
   // Chat State
   const [activeChatShop, setActiveChatShop] = useState(null);
 
-  // API Config
-  const BASE_URL = "http://localhost:8000/api/v1/cyberuser";
-  const token = localStorage.getItem("accessToken");
-
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
-
   const fetchData = async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
+      
+      // ✅ Use Service
       const [shopsRes, profileRes] = await Promise.all([
-        axios.get(`${BASE_URL}/allcyber`, getHeaders()),
-        axios.get(`${BASE_URL}/profile`, getHeaders()),
+        cyberUser.get_all_shops(),
+        cyberUser.get_profile(),
       ]);
 
-      setShops(shopsRes.data.data);
-      if (!searchTerm) setFilteredShops(shopsRes.data.data);
-      setMyProfile(profileRes.data.data);
+      // api.js returns response.data
+      setShops(shopsRes.data || []);
+      if (!searchTerm) setFilteredShops(shopsRes.data || []);
+      setMyProfile(profileRes.data);
 
     } catch (error) {
       console.error("Sync Error:", error);
@@ -85,7 +81,8 @@ const CyberUserDashboard = () => {
   const handleApply = async (adminUsername) => {
     try {
       toast.loading("Sending Request...");
-      await axios.post(`${BASE_URL}/apply/${adminUsername}`, {}, getHeaders());
+      // ✅ Use Service
+      await cyberUser.apply_shop(adminUsername);
       toast.dismiss();
       toast.success("Application Sent!");
       fetchData(true); 
@@ -98,7 +95,8 @@ const CyberUserDashboard = () => {
   const handleWithdraw = async (adminUsername) => {
     if(!window.confirm(`Withdraw request?`)) return;
     try {
-      await axios.post(`${BASE_URL}/withdraw`, { adminUsername }, getHeaders());
+      // ✅ Use Service
+      await cyberUser.withdraw_application(adminUsername);
       toast.success("Withdrawn");
       fetchData(true);
     } catch (error) {
@@ -182,7 +180,7 @@ const CyberUserDashboard = () => {
         </div>
 
         {loading ? (
-           <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
+            <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={32}/></div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredShops.filter(s => s._id !== activeShop?._id).map((shop) => {

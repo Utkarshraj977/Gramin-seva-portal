@@ -1,40 +1,36 @@
 import { useState } from "react";
-import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   Stethoscope, Lock, ShieldCheck, ChevronLeft, 
   Activity, Loader2, AlertCircle 
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast"; // ✅ Added Toast
+import { doctor } from "../services/api"; // ✅ Import Service
 
 export default function DoctorAdminLogin() {
   const [DoctorKey, setDoctorKey] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
-      const res = await axios.post(
-        "http://localhost:8000/api/v1/doctor/doctorlogin",
-        { DoctorKey },
-        {
-          withCredentials: true, // Crucial for cookies
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      // ✅ Use Service: doctor.login()
+      // Pass as object { DoctorKey } to match req.body
+      const res = await doctor.login({ DoctorKey });
 
-      if (res.status === 200) {
-        alert("Login Successful! Welcome Doctor.");
-        // Redirect to Doctor Dashboard
-        navigate("/doctor/admindashboard"); 
-      }
+      toast.success("Login Successful! Welcome Doctor.");
+      // Redirect to Doctor Dashboard
+      setTimeout(() => {
+          navigate("/doctor/admindashboard");
+      }, 1000);
+
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Invalid Doctor Key. Please try again.");
+      const errorMsg = err.response?.data?.message || "Invalid Doctor Key. Please try again.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -42,6 +38,7 @@ export default function DoctorAdminLogin() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+      <Toaster position="top-center" />
       
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] animate-fade-in-up">
         
@@ -91,14 +88,6 @@ export default function DoctorAdminLogin() {
               Please enter your unique <span className="font-semibold text-slate-700">6-Digit Doctor Key</span> to access patient records.
             </p>
 
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 text-sm font-medium animate-pulse">
-                <AlertCircle size={20} />
-                {error}
-              </div>
-            )}
-
             <form onSubmit={handleLogin} className="space-y-6">
               
               <div className="space-y-2">
@@ -139,13 +128,13 @@ export default function DoctorAdminLogin() {
               </button>
 
               <div className="text-center pt-6 border-t border-slate-100 mt-6">
-                 <p className="text-slate-500 text-sm">
-                   Don't have an ID? <Link to="/doctor/register" className="text-teal-700 font-bold hover:underline">Register Clinic</Link>
-                 </p>
-                 <div className="mt-4 inline-flex items-center gap-2 text-xs text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg">
+                  <p className="text-slate-500 text-sm">
+                    Don't have an ID? <Link to="/doctor/register" className="text-teal-700 font-bold hover:underline">Register Clinic</Link>
+                  </p>
+                  <div className="mt-4 inline-flex items-center gap-2 text-xs text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg">
                     <ShieldCheck size={12} />
                     <span>HIPAA Compliant Security</span>
-                 </div>
+                  </div>
               </div>
 
             </form>

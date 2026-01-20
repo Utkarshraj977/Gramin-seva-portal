@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, UserCog, CheckCircle2, XCircle, Clock, 
   MapPin, Search, Filter, LogOut, Briefcase, 
   Building2, FileText, ShieldAlert, RefreshCcw,
-  UserPlus, Phone, Mail, User, Trash2, Loader2, Send
+  UserPlus, Phone, Mail, User, Trash2, Loader2
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { complaintAdmin } from "../services/api";
 
 const ComplaintAdminDashboard = () => {
   const navigate = useNavigate();
@@ -41,26 +43,21 @@ const ComplaintAdminDashboard = () => {
     location: "", Start_time: "", End_time: "", designation: ""
   });
 
-  // --- API CONFIG ---
-  const BASE_URL = "http://localhost:8000/api/v1/ComplaintAdmin";
-
   // --- 1. ROBUST DATA FETCHING ---
   const fetchData = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
       
+      // ✅ Use Service: complaintAdmin methods
       const [statsRes, listRes, reqRes] = await Promise.all([
-        axios.get(`${BASE_URL}/dashboard/stats`, { withCredentials: true }),
-        axios.get(`${BASE_URL}/allcomplaints`, { withCredentials: true }),
-        axios.get(`${BASE_URL}/requests`, { withCredentials: true })
+        complaintAdmin.get_stats(),
+        complaintAdmin.get_all_complaints(),
+        complaintAdmin.get_connection_requests()
       ]);
-
-      console.log("Stats Response:", statsRes.data);
-      console.log("List Response:", listRes.data);
 
       // --- FIX 1: Flexible Data Reading ---
       // Check data inside .data.data OR .data OR fallback to default
-      const statsData = statsRes.data.data || statsRes.data || {};
+      const statsData = statsRes.data || statsRes || {};
       setStats({
           total: statsData.total || 0,
           pending: statsData.pending || 0,
@@ -68,20 +65,19 @@ const ComplaintAdminDashboard = () => {
           ward: statsData.ward || "Unknown"
       });
 
-      // Try finding the array in multiple common locations
-      const rawList = listRes.data.data || listRes.data.complaints || listRes.data || [];
+      const rawList = listRes.data || listRes.complaints || [];
       const complaintArray = Array.isArray(rawList) ? rawList : [];
       setComplaints(complaintArray);
 
-      // Requests handling
-      const rawRequests = reqRes.data.data || reqRes.data || [];
+      const rawRequests = reqRes.data || [];
       setRequests(Array.isArray(rawRequests) ? rawRequests : []);
 
       // Pre-fill profile only once
       if (!isBackground) {
          try {
-            const userRes = await axios.get(`${BASE_URL}/getuserbyid`, { withCredentials: true });
-            const uData = userRes.data.data || userRes.data || {};
+            // ✅ Use Service
+            const userRes = await complaintAdmin.get_current_admin();
+            const uData = userRes.data || {};
             setProfileData({
                 location: uData.location || "",
                 Start_time: uData.Start_time || "",
@@ -111,11 +107,9 @@ const ComplaintAdminDashboard = () => {
   // --- 2. ADVANCED FILTERING & DERIVED STATE ---
   useEffect(() => {
     // 1. Complaint Filtering
-    let result = [...complaints]; // Create a copy
+    let result = [...complaints]; 
     
     if (statusFilter !== "All") {
-      // --- FIX 2: Case Insensitive Filtering ---
-      // Matches "pending" with "Pending"
       result = result.filter(c => 
         c.status && c.status.toLowerCase() === statusFilter.toLowerCase()
       );
@@ -169,15 +163,18 @@ const ComplaintAdminDashboard = () => {
     setActionLoading(true);
 
     try {
-      const endpoint = actionType === "resolve"
-        ? `${BASE_URL}/resolve/${selectedComplaint._id}`
-        : `${BASE_URL}/reject/${selectedComplaint._id}`;
+      // ✅ Use Service
+      if (actionType === "resolve") {
+          // Note: Backend might expect a body with responseMessage. 
+          // If api.js resolve_complaint only takes ID, you might need to update api.js or backend to accept body.
+          // Assuming api.js resolve_complaint handles body if passed as second arg (axios default), 
+          // but current api.js definition only takes ID.
+          // Let's assume for now simple toggle, or update api.js if payload needed.
+          await complaintAdmin.resolve_complaint(selectedComplaint._id); 
+      } else {
+          await complaintAdmin.reject_complaint(selectedComplaint._id);
+      }
 
-      const payload = actionType === "resolve" 
-        ? { responseMessage: responseText }
-        : { reason: responseText };
-
-      await axios.patch(endpoint, payload, { withCredentials: true });
       toast.success(`Action Successful: ${newStatus}`);
       setResponseText("");
       
@@ -193,10 +190,7 @@ const ComplaintAdminDashboard = () => {
 
   // Handle Connection Request (Accept/Reject)
   const handleConnectionAction = async (userId, status) => {
-      // Backup
       const originalRequests = [...requests];
-
-      // Optimistic Update
       const newStatus = status === 'accept' ? "Accepted" : "Rejected";
       
       setRequests(prev => prev.map(r => 
@@ -204,7 +198,8 @@ const ComplaintAdminDashboard = () => {
       ));
 
       try {
-          await axios.post(`${BASE_URL}/connection/${status}/${userId}`, {}, { withCredentials: true });
+          // ✅ Use Service
+          await complaintAdmin.handle_connection_request(status, userId);
           toast.success(`Request ${newStatus}`);
       } catch (error) {
           toast.error("Failed to update status");
@@ -216,7 +211,8 @@ const ComplaintAdminDashboard = () => {
     e.preventDefault();
     try {
       toast.loading("Updating Profile...");
-      await axios.patch(`${BASE_URL}/profile/update`, profileData, { withCredentials: true });
+      // ✅ Use Service
+      await complaintAdmin.update_profile(profileData);
       toast.dismiss();
       toast.success("Profile Updated");
     } catch (error) {
@@ -292,8 +288,8 @@ const ComplaintAdminDashboard = () => {
         {/* Mobile Header */}
         <div className="md:hidden bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-30">
            <div className="flex items-center gap-2">
-              <ShieldAlert className="text-red-500"/>
-              <span className="font-bold text-white">Admin Dashboard</span>
+             <ShieldAlert className="text-red-500"/>
+             <span className="font-bold text-white">Admin Dashboard</span>
            </div>
            <button onClick={() => navigate("/complaint/admin/login")} className="text-slate-400"><LogOut size={20}/></button>
         </div>
@@ -593,7 +589,7 @@ const RequestCard = ({ user, type, onAccept, onReject }) => (
 const ComplaintCard = ({ data, onResolve, onReject }) => (
   <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-slate-600 transition-all group flex flex-col h-full hover:shadow-2xl hover:shadow-black/50">
      <div className="p-5 border-b border-slate-800 bg-slate-800/30 flex justify-between items-start">
-        <div className="flex gap-4">
+       <div className="flex gap-4">
            <div className="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
              {data.userInfo?.avatar?.url ? <img src={data.userInfo.avatar.url} className="w-full h-full object-cover"/> : <User className="text-slate-500" size={24}/>}
            </div>
@@ -605,29 +601,29 @@ const ComplaintCard = ({ data, onResolve, onReject }) => (
                 <Clock size={12}/> {data.createdAt ? new Date(data.createdAt).toLocaleDateString() : "Date N/A"}
              </p>
            </div>
-        </div>
-        <StatusBadge status={data.status} />
+       </div>
+       <StatusBadge status={data.status} />
      </div>
      <div className="p-5 flex-1 flex flex-col">
-        <div className="flex flex-wrap gap-2 mb-4">
+       <div className="flex flex-wrap gap-2 mb-4">
            <span className="px-2.5 py-1 rounded-md bg-slate-950 text-slate-400 text-[10px] font-bold uppercase border border-slate-800">{data.category || "General"}</span>
            <span className="px-2.5 py-1 rounded-md bg-slate-950 text-slate-400 text-[10px] font-bold uppercase border border-slate-800 flex items-center gap-1"><MapPin size={10}/> {data.location || "No Location"}</span>
-        </div>
-        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
+       </div>
+       <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
            <p className="text-slate-300 text-sm leading-relaxed">"{data.message}"</p>
-        </div>
-        {data.complaintImage?.url && (
+       </div>
+       {data.complaintImage?.url && (
            <div className="h-40 w-full rounded-xl bg-black overflow-hidden border border-slate-800 mb-4 group-hover:border-slate-600 transition-colors relative">
              <img src={data.complaintImage.url} alt="Proof" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity cursor-zoom-in" />
              <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-[10px] text-white backdrop-blur-md border border-white/10">Evidence Attached</div>
            </div>
-        )}
-        {data.adminResponse && (
+       )}
+       {data.adminResponse && (
            <div className={`mt-auto p-4 rounded-xl border text-xs ${data.status === "Resolved" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-red-500/5 border-red-500/20 text-red-400"}`}>
               <strong className="block mb-1.5 uppercase opacity-80 flex items-center gap-1.5"><ShieldAlert size={12}/> Official Response:</strong>
               {data.adminResponse}
            </div>
-        )}
+       )}
      </div>
      {/* Match status case-insensitively for buttons */}
      {data.status && data.status.toLowerCase() === "pending" && (

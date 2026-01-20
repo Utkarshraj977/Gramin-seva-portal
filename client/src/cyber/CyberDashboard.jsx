@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -7,6 +6,9 @@ import {
   Briefcase, MessageSquare, RefreshCw, X, Zap
 } from "lucide-react";
 import ChatRoom from '../Chat/ChatRoom'; 
+
+// ✅ Import Service
+import { cyberAdmin } from "../services/api";
 
 const CyberDashboard = () => {
   const [stats, setStats] = useState({ total: 0, selected: 0, pending: 0 });
@@ -17,24 +19,20 @@ const CyberDashboard = () => {
   // Chat State
   const [activeChatUser, setActiveChatUser] = useState(null);
 
-  const BASE_URL = "http://localhost:8000/api/v1/cyberadmin";
-  const token = localStorage.getItem("accessToken"); 
-
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
-
   const fetchDashboardData = async () => {
     try {
+      // ✅ Use Service: cyberAdmin methods
       const [statsRes, usersRes, profileRes] = await Promise.all([
-        axios.get(`${BASE_URL}/stats`, getHeaders()),
-        axios.get(`${BASE_URL}/allcyber`, getHeaders()),
-        axios.get(`${BASE_URL}/profile`, getHeaders()),
+        cyberAdmin.get_stats(),
+        cyberAdmin.get_all_users(),
+        cyberAdmin.get_profile(),
       ]);
-      setStats(statsRes.data.data);
-      setUsers(usersRes.data.data);
-      setProfile(profileRes.data.data);
+
+      // api.js returns response.data directly
+      setStats(statsRes.data || statsRes);
+      setUsers(usersRes.data || usersRes);
+      setProfile(profileRes.data || profileRes);
+
     } catch (error) {
       console.error(error);
     } finally {
@@ -50,7 +48,8 @@ const CyberDashboard = () => {
 
   const handleStatusUpdate = async (username, status) => {
     try {
-      await axios.post(`${BASE_URL}/cyberSumbit`, { username, status }, getHeaders());
+      // ✅ Use Service: cyberAdmin.update_user_status(username, status)
+      await cyberAdmin.update_user_status(username, status);
       toast.success(`User ${status}`);
       fetchDashboardData();
     } catch (error) {
@@ -79,7 +78,7 @@ const CyberDashboard = () => {
              </div>
              <div className="flex items-center gap-4">
                  <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold text-sm">
-                    Open: {profile?.Start_time} - {profile?.End_time}
+                   Open: {profile?.Start_time} - {profile?.End_time}
                  </div>
                  <img src={profile?.cyber_shopPic?.url} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md" alt="Me"/>
              </div>
@@ -167,9 +166,9 @@ const CyberDashboard = () => {
            <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl">
                <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                            {activeChatUser.userInfo?.username?.charAt(0)}
-                        </div>
+                       <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                           {activeChatUser.userInfo?.username?.charAt(0)}
+                       </div>
                        <div>
                            <h3 className="font-bold text-slate-800 leading-none">{activeChatUser.userInfo?.username}</h3>
                            <span className="text-xs text-emerald-500 font-bold">Approved Client</span>
@@ -181,6 +180,7 @@ const CyberDashboard = () => {
                <div className="flex-1 overflow-hidden bg-slate-50">
                    <ChatRoom 
                       // Room ID: [AdminID, UserID] sorted
+                      // profile._id is admin ID, activeChatUser.userInfo._id is user ID
                       roomId={[String(profile.userInfo?._id), String(activeChatUser.userInfo?._id)].sort().join("-")}
                       currentUser={{ 
                           name: profile.userInfo?.username, 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { 
   Building2, UserCheck, Key, MapPin, UploadCloud, 
@@ -7,6 +6,7 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { complaintAdmin } from "../services/api"; // ✅ Import Service
 
 const ComplaintAdminRegister = () => {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const ComplaintAdminRegister = () => {
   };
 
   const removeFile = (e) => {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault(); 
     setCertificate(null);
     setPreview(null);
   };
@@ -62,7 +62,6 @@ const ComplaintAdminRegister = () => {
       return;
     }
 
-    // Key validation (Optional: length check)
     if (formData.ComplaintAdminKey.length < 4) {
       toast.error("Secret Key must be at least 4 characters");
       setLoading(false);
@@ -76,16 +75,10 @@ const ComplaintAdminRegister = () => {
       });
       data.append("complaintAdmin_certificate", certificate);
 
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/ComplaintAdmin/register",
-        data,
-        {
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      // ✅ Use Service: complaintAdmin.register(data)
+      const response = await complaintAdmin.register(data);
 
-      if (response.status === 201 || response.status === 200) {
+      if (response) {
         toast.success("Admin Registration Successful!");
         
         // Form Reset
@@ -328,10 +321,10 @@ const ComplaintAdminRegister = () => {
                         )}
                         
                         <button 
-                            onClick={removeFile}
-                            className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 z-20"
+                           onClick={removeFile}
+                           className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 shadow-md hover:bg-red-700 z-20"
                         >
-                            <X size={14} />
+                           <X size={14} />
                         </button>
                      </div>
                   ) : (

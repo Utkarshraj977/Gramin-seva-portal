@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { 
   Building2, Key, ShieldCheck, Loader2, ArrowRight, Lock 
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { complaintAdmin } from "../services/api"; // ✅ Import Service
 
 const ComplaintAdminLogin = () => {
   const navigate = useNavigate();
@@ -23,33 +23,23 @@ const ComplaintAdminLogin = () => {
     }
 
     try {
-      // Backend API Call
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/ComplaintAdmin/login",
-        { ComplaintAdminKey: key },
-        {
-          withCredentials: true, // Zaroori hai taaki main user ki cookies saath jayein
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      // ✅ Use Service: complaintAdmin.login()
+      // Pass as object { ComplaintAdminKey: "..." }
+      const response = await complaintAdmin.login({ ComplaintAdminKey: key });
 
-      if (response.status === 200) {
-        toast.success("Welcome Back, Official!");
-        
-        // Redirect to Dashboard
-        setTimeout(() => navigate("/complaint/admin/dashboard"), 1500);
-      }
+      // If successful (no error thrown)
+      toast.success("Welcome Back, Official!");
+      setTimeout(() => navigate("/complaint/admin/dashboard"), 1500);
+
     } catch (error) {
       console.error("Login Error:", error);
       
-      // Error Handling Logic
       const status = error.response?.status;
       const msg = error.response?.data?.message || "Login Failed";
 
       if (status === 404) {
         toast.error("Admin Profile not found. Please Register first.");
       } else if (status === 401) {
-        // Could be wrong key OR user not logged in main portal
         if (msg.includes("Invalid Admin Key")) {
            toast.error("Incorrect Secret Key!");
         } else {

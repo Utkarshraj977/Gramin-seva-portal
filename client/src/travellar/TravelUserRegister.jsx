@@ -1,15 +1,14 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { MapPin, Key, Send, Plane } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { travellerUser } from "../services/api"; // ✅ Import Service
 
 const TravelUserRegister = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Updated state: Removed 'from', 'To', 'message' to match backend
   const [formData, setFormData] = useState({
     TravellingUserKey: "",
     location: "",
@@ -31,28 +30,23 @@ const TravelUserRegister = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/traveller/traveluserregister",
-        formData,
-        { withCredentials: true }
-      );
+      // ✅ Use travellerUser service
+      const response = await travellerUser.register(formData);
 
-      if (response.status === 200) {
-        toast.success("Profile Registered Successfully! Redirecting...");
-        
-        // Reset Form
-        setFormData({
-          TravellingUserKey: "",
-          location: "",
-        });
+      // If code reaches here, registration was successful
+      toast.success("Profile Registered Successfully! Redirecting...");
+      
+      setFormData({
+        TravellingUserKey: "",
+        location: "",
+      });
 
-        // Redirect to Login after 2 seconds
-        setTimeout(() => {
-            navigate("/traveller/user/login");
-        }, 2000);
-      }
+      setTimeout(() => {
+          navigate("/traveller/user/login");
+      }, 2000);
+
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Something went wrong";
+      const errorMsg = error.response?.data?.message || "Registration Failed. Try again.";
       toast.error(errorMsg);
     } finally {
       setLoading(false);
@@ -118,7 +112,7 @@ const TravelUserRegister = () => {
                     onChange={handleChange} 
                     placeholder="e.g. New York, Central Station" 
                     className="w-full bg-white/5 border border-white/10 text-white rounded-xl py-3 pl-10 pr-4 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-gray-600" 
-                    required // Optional in backend, but usually good to require in UI
+                    required 
                 />
               </div>
             </div>

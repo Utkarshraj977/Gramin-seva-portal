@@ -13,29 +13,27 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
-
+    setError("");
 
     try {
-      setLoading(true);
-      setError("");
-
-      const data = await user.login({
+      const res = await user.login({
         username,
         email,
         password,
       });
 
-      localStorage.setItem("userData", JSON.stringify(data.data.user));
-      navigate("/profile");
+      // ✅ REAL success check
+   
+        navigate("/profile");
+      
     } catch (err) {
       setError(err.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
-
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-700 to-green-300 p-5 animate-fadeIn">

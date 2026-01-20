@@ -4,6 +4,8 @@ import {
   Car, MapPin, Key, CreditCard, UploadCloud, 
   Bus, ShieldCheck, ChevronLeft, Loader2, FileText 
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast"; // ✅ Added Toast
+import { travellerAdmin } from "../services/api"; // ✅ Import Service
 
 export default function TravellerAdminRegister() {
   const navigate = useNavigate();
@@ -29,6 +31,7 @@ export default function TravellerAdminRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Prepare FormData
     const data = new FormData();
     Object.keys(form).forEach((key) => data.append(key, form[key]));
     if (carPhoto) data.append("CarPhoto", carPhoto);
@@ -36,26 +39,20 @@ export default function TravellerAdminRegister() {
 
     try {
       setLoading(true);
-      const res = await fetch(
-        "http://localhost:8000/api/v1/traveller/traveladminregister",
-        {
-          method: "POST",
-          credentials: "include",
-          body: data, // No Content-Type header needed for FormData
-        }
-      );
-
-      const result = await res.json();
       
-      if (!res.ok) {
-        throw new Error(result.message || "Registration failed");
-      }
+      // ✅ Use travellerAdmin service
+      // Axios instance automatically sets Content-Type to multipart/form-data
+      await travellerAdmin.register(data);
 
-      alert("Registered successfully! Please Login.");
-      navigate("/traveller/login"); // Redirect to login after success
+      toast.success("Registration Successful! Please Login.");
+      
+      setTimeout(() => {
+        navigate("/traveller/login"); 
+      }, 2000);
       
     } catch (err) {
-      alert(err.message || "Registration failed");
+      const errorMsg = err.response?.data?.message || "Registration failed. Try again.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -63,6 +60,7 @@ export default function TravellerAdminRegister() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+      <Toaster position="top-right" />
       
       <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[700px] animate-fade-in-up">
         
@@ -71,7 +69,7 @@ export default function TravellerAdminRegister() {
           {/* Background Image */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-60"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1617788138017-80ad40651399?q=80&w=2070&auto=format&fit=crop')" }} // Indian Road/Transport
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1617788138017-80ad40651399?q=80&w=2070&auto=format&fit=crop')" }} 
           ></div>
           
           {/* Gradient Overlay */}
@@ -202,21 +200,21 @@ export default function TravellerAdminRegister() {
 
               {/* Location (Full Width) */}
               <div className="space-y-2">
-                 <label className="text-sm font-semibold text-slate-600">Base Location (Village/Stand)</label>
-                 <div className="relative">
-                    <MapPin size={18} className="absolute left-3 top-3.5 text-slate-400" />
-                    <input
-                      type="text"
-                      name="location"
-                      placeholder="e.g. Rampur Bus Stand, Block-B"
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                 </div>
+                  <label className="text-sm font-semibold text-slate-600">Base Location (Village/Stand)</label>
+                  <div className="relative">
+                      <MapPin size={18} className="absolute left-3 top-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        name="location"
+                        placeholder="e.g. Rampur Bus Stand, Block-B"
+                        onChange={handleChange}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                        required
+                      />
+                  </div>
               </div>
 
-              {/* --- SECTION 2: DOCUMENTS (Modern Upload) --- */}
+              {/* --- SECTION 2: DOCUMENTS --- */}
               <div className="pt-4 pb-2 border-t border-slate-100">
                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Document Verification</h3>
                 
@@ -245,10 +243,10 @@ export default function TravellerAdminRegister() {
                     <label className="cursor-pointer w-full h-full flex flex-col items-center">
                       <input type="file" className="hidden" accept="image/*" onChange={(e) => setLicense(e.target.files[0])} />
                       {license ? (
-                         <>
-                           <CheckIcon />
-                           <span className="text-sm font-semibold text-emerald-700 mt-2 truncate max-w-[150px]">{license.name}</span>
-                         </>
+                          <>
+                            <CheckIcon />
+                            <span className="text-sm font-semibold text-emerald-700 mt-2 truncate max-w-[150px]">{license.name}</span>
+                          </>
                       ) : (
                         <>
                           <FileText size={32} className="text-slate-400 mb-2" />

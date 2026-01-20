@@ -116,8 +116,8 @@ const adminlogin = asyncHandler(async (req, res) => {
     // 4. Set Cookie Options (LOCALHOST SAFE)
     const options = {
         httpOnly: true,
-        secure: false, // ⚠️ Localhost par FALSE rakhein
-        sameSite: "lax", // ⚠️ Localhost par LAX rakhein
+        secure: true, // ⚠️ Localhost par FALSE rakhein
+        sameSite: "none", // ⚠️ Localhost par LAX rakhein
         path: "/" // Cookie puri site par available hogi
     };
 

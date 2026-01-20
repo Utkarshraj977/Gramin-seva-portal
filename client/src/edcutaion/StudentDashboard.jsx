@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { 
   BookOpen, Search, MapPin, Clock, 
   CheckCircle, XCircle, Loader2, Send, Trash2, Edit3, X, Filter, 
   GraduationCap, RefreshCcw, Sparkles, ShieldCheck, MessageCircle, ArrowLeft
 } from "lucide-react";
+
+// ✅ Import centralized API service
+import { student } from "../services/api";
 
 import ChatRoom from "../Chat/ChatRoom";
 
@@ -23,33 +25,27 @@ const StudentDashboard = () => {
     clas: "", subject: "", board: "", location: ""
   });
 
-  const BASE_URL = "http://localhost:8000/api/v1/education/student";
-  const token = localStorage.getItem("accessToken");
-
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
-
   // --- 1. DATA FETCHING ---
   const fetchData = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
-      const t = new Date().getTime();
+      
+      // ✅ Use student service (Parallel Fetching)
       const [dashRes, teachersRes] = await Promise.all([
-        axios.get(`${BASE_URL}/dashboard?_t=${t}`, getHeaders()),
-        axios.get(`${BASE_URL}/allteacher?_t=${t}`, getHeaders())
+        student.get_dashboard(),
+        student.get_all_teachers()
       ]);
 
-      setDashboardData(dashRes.data.data);
-      setAllTeachers(teachersRes.data.data);
+      // api.js returns response.data, so we access .data inside that if your backend nests it
+      setDashboardData(dashRes.data); 
+      setAllTeachers(teachersRes.data);
       
-      if (!isEditing && dashRes.data.data.profile) {
+      if (!isEditing && dashRes.data?.profile) {
         setProfileForm({
-            clas: dashRes.data.data.profile.clas || "",
-            subject: dashRes.data.data.profile.subject || "",
-            board: dashRes.data.data.profile.board || "",
-            location: dashRes.data.data.profile.location || ""
+            clas: dashRes.data.profile.clas || "",
+            subject: dashRes.data.profile.subject || "",
+            board: dashRes.data.profile.board || "",
+            location: dashRes.data.profile.location || ""
         });
       }
     } catch (error) {
@@ -62,18 +58,21 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => fetchData(true), 1000);
+    const interval = setInterval(() => fetchData(true), 5000); // Polling every 5s
     return () => clearInterval(interval);
   }, [fetchData]);
 
   // --- 2. SEARCH LOGIC ---
   useEffect(() => {
     let baseList = activeTab === "find" ? allTeachers : [];
+    
+    // Filter "My Applications" based on ID matching
     if (activeTab === "my" && dashboardData?.appliedTeachers) {
         baseList = allTeachers.filter(t => 
             dashboardData.appliedTeachers.some(at => String(at._id) === String(t._id))
         );
     }
+
     let results = baseList;
     if (searchTerm) {
         const lower = searchTerm.toLowerCase();
@@ -91,7 +90,8 @@ const StudentDashboard = () => {
   const handleApply = async (username) => {
     try {
         toast.loading("Sending application...");
-        await axios.post(`${BASE_URL}/apply/${username}`, {}, getHeaders());
+        // ✅ Use student service
+        await student.apply_teacher(username);
         toast.dismiss();
         toast.success("Application Sent!");
         fetchData(true);
@@ -104,7 +104,8 @@ const StudentDashboard = () => {
   const handleWithdraw = async (username) => {
     if(!window.confirm("Are you sure you want to withdraw?")) return;
     try {
-        await axios.post(`${BASE_URL}/withdraw/${username}`, {}, getHeaders());
+        // ✅ Use student service
+        await student.withdraw_application(username);
         toast.success("Withdrawn successfully");
         fetchData(true);
     } catch (error) {
@@ -114,7 +115,8 @@ const StudentDashboard = () => {
 
   const handleProfileUpdate = async () => {
     try {
-        await axios.patch(`${BASE_URL}/profile/update`, profileForm, getHeaders());
+        // ✅ Use student service
+        await student.update_profile(profileForm);
         toast.success("Profile Updated");
         setIsEditing(false);
         fetchData(true);
@@ -189,11 +191,6 @@ const StudentDashboard = () => {
 
           return (
             <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-                {/* MODAL CONTAINER:
-                   - w-full max-w-2xl: Limits width (approx 672px max)
-                   - h-[600px]: Fixed height for a contained look
-                   - rounded-2xl: Rounded corners
-                */}
                 <div className="bg-slate-900 w-full max-w-2xl h-[600px] rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col relative zoom-in-95">
                     
                     {/* Header */}

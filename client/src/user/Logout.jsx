@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Cookie, AlertCircle, LogIn } from "lucide-react"; // Icons for better UI
+import { user } from "../services/api";
 
 export default function Logout() {
   const navigate = useNavigate();
@@ -29,10 +30,7 @@ export default function Logout() {
     setIsLoading(true);
 
     try {
-      await fetch("http://localhost:8000/api/v1/users/logout", {
-        method: "POST",
-        credentials: "include", 
-      });
+      await user.logout();
 
       localStorage.removeItem("userData");
       

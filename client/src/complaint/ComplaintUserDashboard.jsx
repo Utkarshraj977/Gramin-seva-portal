@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, Trash2, Clock, CheckCircle2, XCircle, 
@@ -9,6 +8,9 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate, Link } from "react-router-dom";
+
+// ✅ Import Services
+import { complaintUser, complaintAdmin } from "../services/api";
 
 const ComplaintUserDashboard = () => {
   const navigate = useNavigate();
@@ -32,41 +34,39 @@ const ComplaintUserDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Backend URL
-  const BASE_URL = "http://localhost:8000/api/v1"; 
-
   // --- 1. ROBUST DATA FETCHING ---
   const fetchAllData = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
       
-      // Use Promise.all for concurrent fetching (Optimization from reference)
+      // ✅ Use Services (Parallel Fetching)
       const [dashboardRes, officialsRes] = await Promise.all([
-        axios.get(`${BASE_URL}/complaintuser/dashboard`, { withCredentials: true }),
-        axios.get(`${BASE_URL}/ComplaintAdmin/public/officials`)
+        complaintUser.get_dashboard(),
+        complaintAdmin.get_all_officials() // Public route to get officials list
       ]);
       
       // Destructuring Response based on Controller
-      const { complaints, stats, profile, connections } = dashboardRes.data.data;
+      // api.js returns response.data directly
+      const { complaints, stats, profile, connections } = dashboardRes.data || dashboardRes;
       
-      setComplaints(complaints);
-      setStats(stats);
+      setComplaints(complaints || []);
+      setStats(stats || { total: 0, pending: 0, resolved: 0 });
       setUserProfile(profile);
       setMyConnections(connections || []); 
-      setOfficials(officialsRes.data.data);
+      setOfficials(officialsRes.data || []);
 
     } catch (error) {
       console.error("Fetch Error:", error);
       if (error.response?.status === 401 && !isBackground) {
         toast.error("Session Expired");
-      
+        // navigate("/complaint/user/login"); // Optional: Auto redirect
       }
     } finally {
       if (!isBackground) setLoading(false);
     }
   }, [navigate]);
 
-  // Auto-refresh mechanism (Optimization from reference)
+  // Auto-refresh mechanism
   useEffect(() => {
     fetchAllData();
     const interval = setInterval(() => fetchAllData(true), 5000); // 5s refresh
@@ -116,7 +116,9 @@ const ComplaintUserDashboard = () => {
     toast.loading("Sending Request...");
 
     try {
-      await axios.post(`${BASE_URL}/complaintuser/connect/${adminId}`, {}, { withCredentials: true });
+      // ✅ Use Service: complaintUser.connect_admin(id)
+      await complaintUser.connect_admin(adminId);
+      
       toast.dismiss();
       toast.success("Request Sent Successfully!");
       // 4. Fetch actual data to confirm/sync
@@ -140,7 +142,9 @@ const ComplaintUserDashboard = () => {
     setComplaints(prev => prev.filter(c => c._id !== id));
 
     try {
-      await axios.delete(`${BASE_URL}/complaintuser/withdraw/${id}`, { withCredentials: true });
+      // ✅ Use Service: complaintUser.withdraw_complaint(id)
+      await complaintUser.withdraw_complaint(id);
+      
       toast.success("Complaint Withdrawn");
       fetchAllData(true); 
     } catch (error) {
@@ -288,29 +292,29 @@ const ComplaintUserDashboard = () => {
 
            {/* === TAB 2: OFFICIALS (CONNECTION REQUESTS) === */}
            {activeTab === "officials" && (
-              <motion.div 
-                key="officials"
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-              >
-                {filteredOfficials.length > 0 ? (
-                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {filteredOfficials.map(official => {
-                         const status = getConnectionStatus(official._id);
+             <motion.div 
+               key="officials"
+               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+             >
+               {filteredOfficials.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     {filteredOfficials.map(official => {
+                        const status = getConnectionStatus(official._id);
 
-                         return (
-                            <OfficialCard 
-                              key={official._id} 
-                              data={official} 
-                              status={status}
-                              onApply={() => handleApply(official._id)}
-                            />
-                         );
-                      })}
-                   </div>
-                ) : (
-                   <EmptyState message="No officials found." icon={Search} />
-                )}
-              </motion.div>
+                        return (
+                           <OfficialCard 
+                             key={official._id} 
+                             data={official} 
+                             status={status}
+                             onApply={() => handleApply(official._id)}
+                           />
+                        );
+                     })}
+                  </div>
+               ) : (
+                  <EmptyState message="No officials found." icon={Search} />
+               )}
+             </motion.div>
            )}
 
         </AnimatePresence>
@@ -333,22 +337,22 @@ const TabButton = ({ active, onClick, icon: Icon, label }) => (
 
 const StatCard = ({ count, label, icon, color, bg, border }) => (
   <div className={`bg-slate-900 border ${border} p-6 rounded-2xl flex items-center justify-between hover:shadow-lg transition-shadow`}>
-     <div>
+      <div>
         <p className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">{label}</p>
         <h3 className="text-3xl font-bold text-white tracking-tight">{count}</h3>
-     </div>
-     <div className={`p-3 rounded-xl ${bg} ${color}`}>
+      </div>
+      <div className={`p-3 rounded-xl ${bg} ${color}`}>
         {icon}
-     </div>
+      </div>
   </div>
 );
 
 const EmptyState = ({ message, icon: Icon }) => (
   <div className="text-center py-20 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
-     <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
         <Icon className="text-slate-600" size={32} />
-     </div>
-     <p className="text-slate-500 text-sm font-medium">{message}</p>
+      </div>
+      <p className="text-slate-500 text-sm font-medium">{message}</p>
   </div>
 );
 

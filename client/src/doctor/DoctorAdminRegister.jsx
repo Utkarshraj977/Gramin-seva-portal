@@ -1,10 +1,11 @@
 import { useState } from "react";
-import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   Stethoscope, MapPin, Clock, Key, UploadCloud, 
   FileBadge, Activity, ChevronLeft, Loader2, CheckCircle2 
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast"; // ✅ Added Toast
+import { doctor } from "../services/api"; // ✅ Import Service
 
 export default function DoctorAdminRegister() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function DoctorAdminRegister() {
 
     // Basic Validation for Key
     if (form.DoctorKey.length !== 6) {
-      alert("Doctor Key must be exactly 6 digits");
+      toast.error("Doctor Key must be exactly 6 digits");
       return;
     }
 
@@ -48,22 +49,19 @@ export default function DoctorAdminRegister() {
 
     try {
       setLoading(true);
-      const res = await axios.post(
-        "http://localhost:8000/api/v1/doctor/doctorregister",
-        data,
-        {
-          withCredentials: true, // Important: Sends cookies so backend gets userInfo
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      // ✅ Use Service: doctor.register(data)
+      // Axios instance automatically sets Content-Type to multipart/form-data
+      const res = await doctor.register(data);
 
-      if (res.data) {
-        alert("Registration Successful! Please Login.");
-        navigate("/doctor/login"); // Redirect to doctor login
+      if (res) {
+        toast.success("Registration Successful! Please Login.");
+        setTimeout(() => {
+            navigate("/doctor/login"); 
+        }, 2000);
       }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Registration Failed");
+      toast.error(err.response?.data?.message || "Registration Failed");
     } finally {
       setLoading(false);
     }
@@ -71,6 +69,7 @@ export default function DoctorAdminRegister() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans text-slate-800">
+      <Toaster position="top-right" />
       
       <div className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row min-h-[700px] animate-fade-in-up">
         
@@ -79,7 +78,7 @@ export default function DoctorAdminRegister() {
           {/* Background Image */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-40"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1964&auto=format&fit=crop')" }} // Doctor/Stethoscope
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1964&auto=format&fit=crop')" }} 
           ></div>
           
           {/* Gradient Overlay */}
@@ -285,7 +284,7 @@ export default function DoctorAdminRegister() {
         </div>
 
       </div>
-
+      
       <style>{`
         .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
         @keyframes fadeInUp {

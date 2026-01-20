@@ -50,7 +50,7 @@ app.use("/api/v1/education", educationRouter)
 app.use("/api/v1/education/student", educationStudentRouter);
 app.use("/api/v1/ComplaintAdmin", ComplaintAdmin)
 app.use("/api/v1/complaintuser", ComplaintUser)
-app.use("/api/v1/traveller", travelleradmin)
+app.use("/api/v1/traveller", travelleradmin) 
 app.use("/api/v1/traveller", travelleruser) 
 app.use("/api/v1/cyberadmin", cyberadmin)
 app.use("/api/v1/cyberuser", cyberuser) 

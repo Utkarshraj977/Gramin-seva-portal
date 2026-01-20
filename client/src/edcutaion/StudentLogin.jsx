@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Key, UserCheck, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { student } from "../services/api"; // ✅ Import Service
 
 const StudentLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,7 @@ const StudentLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading(true); 
 
     if (!StudentKey.trim()) {
       toast.error("Please enter your Student Key");
@@ -21,23 +21,25 @@ const StudentLogin = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/education/student/login",
-        { StudentKey },
-        { withCredentials: true }
-      );
+      // ✅ Use student service
+      // We pass it as an object { StudentKey: "..." } so backend receives req.body.StudentKey
+      const response = await student.login({ StudentKey });
 
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Welcome, Student!");
-        
-        // Redirect to Student Dashboard
-        setTimeout(() => {
-          navigate("/education/user/dashboard");
-        }, 1500);
+      // If code reaches here, it's a success (api.js handles errors)
+      toast.success("Welcome, Student!");
+      
+      // Optional: Save user data to local storage for UI if needed
+      if(response.data) {
+          localStorage.setItem("user", JSON.stringify(response.data));
       }
+      
+      setTimeout(() => {
+        navigate("/education/user/dashboard");
+      }, 1500);
+
     } catch (error) {
-      // Handles 409 "StudentKey is wrong"
-      const errorMsg = error.response?.data?.message || "Invalid Key";
+      // API service throws an error object with response data
+      const errorMsg = error.response?.data?.message || "Invalid Key or Login Failed";
       toast.error(errorMsg);
     } finally {
       setLoading(false);

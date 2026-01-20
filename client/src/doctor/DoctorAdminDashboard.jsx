@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-// 1. IMPORT THE CHAT COMPONENT
 import ChatRoom from '../Chat/ChatRoom'; 
-
 import { 
   Users, 
   MessageSquare, 
@@ -11,11 +8,12 @@ import {
   Save, 
   LogOut,
   Stethoscope,
-  MapPin,
-  Clock,
   Activity,
   CalendarCheck
 } from 'lucide-react';
+
+// ✅ Import Service
+import { doctor } from "../services/api";
 
 const DoctorAdminDashboard = () => {
   const [profile, setProfile] = useState(null);
@@ -23,16 +21,15 @@ const DoctorAdminDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
-  // 2. NEW STATE: Track which patient is currently in chat
+  // New State for Chat
   const [activeChatPatient, setActiveChatPatient] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/v1/doctor/currentdoctor', {
-          withCredentials: true
-        });
-        setProfile(response.data.data);
+        // ✅ Use Service: doctor.get_profile()
+        const response = await doctor.get_profile();
+        setProfile(response.data); // api.js returns response.data
       } catch (error) {
         console.error("Error fetching profile", error);
       } finally {
@@ -42,7 +39,6 @@ const DoctorAdminDashboard = () => {
     fetchProfile();
   }, []);
 
-  // 3. UPDATE HANDLER: Set state instead of Alert
   const handleStartChat = (patientId, patientName, patientAvatar) => {
     setActiveChatPatient({
         id: patientId,
@@ -67,7 +63,7 @@ const DoctorAdminDashboard = () => {
     // Main Container
     <div className="min-h-screen bg-slate-50 font-sans relative overflow-x-hidden">
       
-      {/* --- Header (Teal/Emerald Gradient) --- */}
+      {/* --- Header --- */}
       <nav className="bg-gradient-to-r from-teal-800 via-teal-600 to-emerald-500 text-white shadow-xl sticky top-0 z-20 px-6 py-4 flex justify-between items-center transition-all">
         <div className="flex items-center gap-3">
            <div className="bg-white/10 backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-inner">
@@ -102,7 +98,7 @@ const DoctorAdminDashboard = () => {
         
         {/* Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            {/* Card 1: Patients (Emerald Theme) */}
+            {/* Card 1: Patients */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-emerald-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute -right-6 -top-6 bg-emerald-50 rounded-full w-32 h-32 opacity-50 group-hover:scale-125 transition-transform"></div>
                 <div className="relative z-10">
@@ -121,7 +117,7 @@ const DoctorAdminDashboard = () => {
                 </div>
             </div>
             
-            {/* Card 2: Sessions (Violet Theme) */}
+            {/* Card 2: Sessions */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-violet-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute -right-6 -top-6 bg-violet-50 rounded-full w-32 h-32 opacity-50 group-hover:scale-125 transition-transform"></div>
                 <div className="relative z-10">
@@ -140,7 +136,7 @@ const DoctorAdminDashboard = () => {
                 </div>
             </div>
 
-            {/* Card 3: Appointments (Amber Theme) */}
+            {/* Card 3: Appointments */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-amber-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden group">
                 <div className="absolute -right-6 -top-6 bg-amber-50 rounded-full w-32 h-32 opacity-50 group-hover:scale-125 transition-transform"></div>
                 <div className="relative z-10">
@@ -204,12 +200,12 @@ const DoctorAdminDashboard = () => {
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                         <div className="text-sm space-y-1">
+                          <div className="text-sm space-y-1">
                             <p className="text-slate-700 font-medium">{pat.userInfo?.email}</p>
                             <p className="text-slate-400 flex items-center gap-1">
                                 {pat.userInfo?.phone || "No Phone"}
                             </p>
-                         </div>
+                          </div>
                       </td>
                       <td className="px-8 py-5">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
@@ -219,7 +215,6 @@ const DoctorAdminDashboard = () => {
                       </td>
                       <td className="px-8 py-5 text-right">
                             <button 
-                                // 4. UPDATE BUTTON: Pass Avatar URL
                                 onClick={() => handleStartChat(pat._id, pat.userInfo?.fullName, pat.userInfo?.avatar?.url)}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-teal-600 text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
                             >
@@ -262,7 +257,7 @@ const DoctorAdminDashboard = () => {
         }`}
       >
         <div className="h-32 bg-gradient-to-br from-teal-700 to-emerald-500 relative flex justify-end p-4">
-             <button 
+              <button 
                 onClick={toggleSidebar} 
                 className="text-white/80 hover:text-white bg-black/10 hover:bg-black/20 p-2 rounded-full backdrop-blur-md transition-colors h-fit"
             >
@@ -271,7 +266,7 @@ const DoctorAdminDashboard = () => {
         </div>
 
         <div className="px-8 pb-8 -mt-16 h-[calc(100%-128px)] overflow-y-auto custom-scrollbar">
-             <div className="flex flex-col items-center mb-6">
+              <div className="flex flex-col items-center mb-6">
                 <div className="relative group">
                     <img 
                         src={profile.userInfo?.avatar.url || "https://via.placeholder.com/150"} 
@@ -287,9 +282,9 @@ const DoctorAdminDashboard = () => {
                 <span className="mt-1 px-3 py-1 bg-teal-50 text-teal-700 text-xs font-bold uppercase tracking-wide rounded-full">
                     {profile.category} Specialist
                 </span>
-             </div>
+              </div>
 
-             <div className="space-y-6">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <h4 className="font-bold text-slate-400 text-xs uppercase tracking-wider">Professional Info</h4>
                     <button 
@@ -311,7 +306,6 @@ const DoctorAdminDashboard = () => {
                             <p className="text-slate-700 font-medium bg-slate-50 p-3 rounded-xl border border-transparent">{profile.userInfo?.fullName}</p>
                         )}
                     </div>
-                    {/* ... other fields ... */}
                 </div>
              </div>
         </div>
@@ -331,7 +325,7 @@ const DoctorAdminDashboard = () => {
         </div>
       </div>
 
-      {/* --- 5. CHAT ROOM MODAL (Added Logic) --- */}
+      {/* --- 5. CHAT ROOM MODAL --- */}
       {activeChatPatient && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
            <div className="relative w-full max-w-4xl h-[85vh] flex flex-col">

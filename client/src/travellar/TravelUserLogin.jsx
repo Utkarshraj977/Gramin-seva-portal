@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Key, Lock, Plane, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import { travellerUser } from "../services/api"; // ✅ Import Service
 
 const TravelUserLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -22,22 +22,22 @@ const TravelUserLogin = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/traveller/traveluserlogin",
-        { TravellingUserKey: travellingUserKey },
-        {
-          withCredentials: true,
-        }
-      );
+      // ✅ Use travellerUser service
+      // Pass as object { TravellingUserKey: "..." }
+      const response = await travellerUser.login({ TravellingUserKey: travellingUserKey });
 
-      if (response.status === 200) {
-        toast.success("Login Successful! Redirecting...");
-        
-        // 👇 YAHAN CHANGE KIYA HAI: Dashboard Route
-        setTimeout(() => {
-          navigate("/traveller/user/dashboard"); 
-        }, 1500);
+      // If code reaches here, login was successful (200 OK)
+      toast.success("Login Successful! Redirecting...");
+      
+      // Optional: Store user data for UI if backend returns it
+      if (response?.data) {
+          localStorage.setItem("travellerUser", JSON.stringify(response.data));
       }
+      
+      setTimeout(() => {
+        navigate("/traveller/user/dashboard"); 
+      }, 1500);
+
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Invalid Key or Unauthorized";
       toast.error(errorMsg);

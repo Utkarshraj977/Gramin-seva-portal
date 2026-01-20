@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
-import { Lock, ShieldCheck, Server, ArrowRight, Database } from "lucide-react";
+import { Lock, Database, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { cyberAdmin } from "../services/api";
 
 const CyberAdminLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -21,24 +23,19 @@ const CyberAdminLogin = () => {
     }
 
     try {
-      // Connects to your adminlogin controller
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/cyberadmin/adminlogin",
-        { cyberKey },
-        { withCredentials: true }
-      );
+      // ✅ Use Service: cyberAdmin.login()
+      // Pass as object { cyberKey: "..." }
+      const response = await cyberAdmin.login({ cyberKey });
 
-      // Controller returns 201 on success
-      if (response.status === 201 || response.status === 200) {
-        toast.success("Admin Authorization Verified!");
-        
-        // Redirect to Admin Dashboard
-        setTimeout(() => {
+      toast.success("Admin Authorization Verified!");
+      
+      // Redirect to Admin Dashboard
+      setTimeout(() => {
           navigate("/cyber/admin/dashboard");
-        }, 1500);
-      }
+      }, 1500);
+
     } catch (error) {
-      // Handles the 409 "EducatorKey is wrong" or 400 errors
+      // Handles the 409 "Key is wrong" or 400 errors
       const errorMsg = error.response?.data?.message || "Authorization Failed. Check Key.";
       toast.error(errorMsg);
     } finally {

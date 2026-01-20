@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { Key, Lock, Shield, ArrowRight, Cpu, Terminal } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { cyberUser } from "../services/api";
 
 const CyberUserLogin = () => {
   const [loading, setLoading] = useState(false);
@@ -14,7 +16,6 @@ const CyberUserLogin = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Frontend Validation
     if (!/^\d{6}$/.test(cyberUserKey)) {
       toast.error("Key must be exactly 6 digits.");
       setLoading(false);
@@ -22,22 +23,14 @@ const CyberUserLogin = () => {
     }
 
     try {
-      // Endpoint updated based on app.use('/api/v1/cyberuser') and router.route('/login')
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/cyberuser/login",
-        { cyberUserKey }, 
-        {
-          withCredentials: true,
-        }
-      );
+      // ✅ Use Service
+      // Pass as object to match req.body
+      const response = await cyberUser.login({ cyberUserKey });
 
-      // Controller returns 201 on success
-      if (response.status === 201 || response.status === 200) {
+      if (response) {
         toast.success("Access Granted. Initializing Session...");
-        
-        // Redirect to Dashboard
         setTimeout(() => {
-          navigate("/cyber/user/dashboard"); // Adjust this route to your actual dashboard path
+          navigate("/cyber/user/dashboard"); 
         }, 1500);
       }
     } catch (error) {
@@ -54,7 +47,6 @@ const CyberUserLogin = () => {
   };
 
   return (
-    // Background: Matrix/Code style
     <div className="min-h-screen flex items-center justify-center bg-[url('https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center relative p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-[2px]"></div>
       <Toaster position="top-center" />
@@ -67,7 +59,6 @@ const CyberUserLogin = () => {
       >
         {/* Left Side: Visuals */}
         <div className="md:w-1/2 bg-gradient-to-br from-emerald-900/90 to-black/95 p-10 text-white flex flex-col justify-center relative overflow-hidden">
-          {/* Decorative blurs */}
           <div className="absolute top-[-40px] right-[-40px] w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-[-40px] left-[-40px] w-40 h-40 bg-teal-500/10 rounded-full blur-3xl"></div>
 
@@ -106,7 +97,6 @@ const CyberUserLogin = () => {
                   value={cyberUserKey}
                   onChange={(e) => {
                     const val = e.target.value;
-                    // Only allow numbers, max 6 chars
                     if (/^\d*$/.test(val) && val.length <= 6) setCyberUserKey(val);
                   }}
                   placeholder="0 0 0 0 0 0"
@@ -126,7 +116,7 @@ const CyberUserLogin = () => {
             </motion.button>
             
             <div className="text-center pt-2">
-               <p className="text-gray-500 text-sm">
+               <p className="text-gray-400 text-sm">
                  No active session? <Link to="/cyber/user/register" className="text-emerald-400 hover:text-emerald-300 font-semibold hover:underline transition-colors">Register Key</Link>
                </p>
             </div>

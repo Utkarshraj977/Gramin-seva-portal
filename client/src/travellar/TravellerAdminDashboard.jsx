@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import ChatRoom from '../Chat/ChatRoom';
 import {
-  MapPin, CheckCircle, XCircle, Car, Users,
-  Phone, MessageSquare, X, Clock
+  Car, Users, Phone, MessageSquare, X, CheckCircle, XCircle
 } from "lucide-react";
+
+// ✅ Import Centralized Service
+import { travellerAdmin } from "../services/api";
 
 const TravellerAdminDashboard = () => {
   const [adminData, setAdminData] = useState(null);
@@ -20,11 +21,17 @@ const TravellerAdminDashboard = () => {
   // --- FETCH DATA ---
   const fetchAdminData = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/api/v1/traveller/gettraveladminbyid", { withCredentials: true });
-      setAdminData(response.data.data.admin);
-      setCurrentDriver(response.data.data.admin);
+      // ✅ Service Call: No ID needed here, API uses Cookie
+      const response = await travellerAdmin.get_current_admin();
+      
+      
+      if(response.data && response.data.admin) {
+          setAdminData(response.data.admin);
+          setCurrentDriver(response.data.admin);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
+      // Optional: If 401/Unauthorized, redirect to login
     } finally {
       setLoading(false);
     }
@@ -39,26 +46,23 @@ const TravellerAdminDashboard = () => {
   // --- HANDLERS ---
   const handleReject = async (passengerUserId) => {
     if (!window.confirm("Remove this passenger?")) return;
+    
     try {
-      // Calls the deleteServetravelleruser route
-      await axios.delete(`http://localhost:8000/api/v1/traveller/deleteserveuser/${passengerUserId}`, { withCredentials: true });
+      // ✅ Service Call
+      await travellerAdmin.delete_served_user(passengerUserId);
       toast.success("Passenger removed");
-
-      // Update UI
-      fetchAdminData(); // Refresh data to ensure sync
+      fetchAdminData(); 
     } catch (e) {
       console.error(e);
       toast.error("Failed to remove passenger");
     }
   };
 
-  const handleAccept = async (passengerUserId) => {
+  const handleAccept = async (travellerId) => {
     try {
-      // Calls the acceptTraveller route
-      await axios.patch(`http://localhost:8000/api/v1/traveller/accepttraveller/${passengerUserId}`, {}, { withCredentials: true });
+      // ✅ Service Call: Using the specific accept route
+      await travellerAdmin.accept_traveller(travellerId);
       toast.success("Passenger Accepted! Moved to My Rides.");
-
-      // Update UI
       fetchAdminData();
     } catch (error) {
       console.error(error);
@@ -112,7 +116,13 @@ const TravellerAdminDashboard = () => {
           {activeTab === "requests" ? (
             <motion.div key="req" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pendingPassengers.length > 0 ? pendingPassengers.map(p => (
-                <PassengerCard key={p.userInfo?._id || Math.random()} traveller={p} type="request" onAccept={handleAccept} onReject={handleReject} />
+                <PassengerCard 
+                    key={p._id || Math.random()} 
+                    traveller={p} 
+                    type="request" 
+                    onAccept={handleAccept} // Pass the traveller ID (p._id) logic happens inside card
+                    onReject={handleReject} 
+                />
               )) : (
                 <div className="col-span-full py-20 flex flex-col items-center text-slate-400">
                   <Users size={48} className="mb-2 opacity-20" />
@@ -123,7 +133,13 @@ const TravellerAdminDashboard = () => {
           ) : (
             <motion.div key="act" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activePassengers.length > 0 ? activePassengers.map(p => (
-                <PassengerCard key={p.userInfo?._id || Math.random()} traveller={p} type="active" onChat={() => setActiveChatPassenger(p)} onReject={handleReject} />
+                <PassengerCard 
+                    key={p._id || Math.random()} 
+                    traveller={p} 
+                    type="active" 
+                    onChat={() => setActiveChatPassenger(p)} 
+                    onReject={handleReject} 
+                />
               )) : (
                 <div className="col-span-full py-20 flex flex-col items-center text-slate-400">
                   <Car size={48} className="mb-2 opacity-20" />
@@ -172,9 +188,11 @@ const TravellerAdminDashboard = () => {
 const PassengerCard = ({ traveller, type, onAccept, onReject, onChat }) => {
   const user = traveller.userInfo || {};
   
-  // ✅ FIX: Safe extraction of the Passenger's User ID
-  // If user is an object (populated), take _id. If user is just a string, take it directly.
+  // We need to know which ID the backend expects. 
+  // Usually for 'Delete', it wants the User ID. 
+  // For 'Accept', it wants the Traveller/Request ID (the `traveller._id`).
   const passengerUserId = user._id || user; 
+  const travellerRequestId = traveller._id; 
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
@@ -208,9 +226,10 @@ const PassengerCard = ({ traveller, type, onAccept, onReject, onChat }) => {
       <div className="px-4 pb-4 pt-0 flex gap-2">
         {type === 'request' ? (
           <>
-            {/* ✅ PASSING passengerUserId (the User ID) */}
             <button onClick={() => onReject(passengerUserId)} className="flex-1 py-2 text-red-500 border border-red-200 rounded-lg text-sm font-bold hover:bg-red-50 transition-colors">Reject</button>
-            <button onClick={() => onAccept(passengerUserId)} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">Accept</button>
+            
+            {/* Note: Passing travellerRequestId for accept */}
+            <button onClick={() => onAccept(travellerRequestId)} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">Accept</button>
           </>
         ) : (
           <>

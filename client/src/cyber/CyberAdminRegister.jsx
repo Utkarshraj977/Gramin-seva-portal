@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { MapPin, Clock, Key, Briefcase, Upload, Shield, X, ImageIcon } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+
+// ✅ Import Service
+import { cyberAdmin } from "../services/api";
 
 const CyberAdminRegister = () => {
   const [loading, setLoading] = useState(false);
@@ -59,16 +61,11 @@ const CyberAdminRegister = () => {
     }
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/cyberadmin/adminregister",
-        data,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-          withCredentials: true,
-        }
-      );
+      // ✅ Use Service: cyberAdmin.register()
+      // Axios instance automatically sets Content-Type: multipart/form-data
+      const response = await cyberAdmin.register(data);
 
-      if (response.status === 201) {
+      if (response) {
         toast.success("Admin Profile Created Successfully!");
         setTimeout(() => {
             navigate("/cyber/admin/login"); 

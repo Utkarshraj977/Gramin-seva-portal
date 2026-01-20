@@ -76,8 +76,8 @@ const userregister = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: false, // Localhost fix
-        sameSite: "lax",
+        secure: true, // Localhost fix
+        sameSite: "none",
         path: "/"
     };
 
@@ -111,8 +111,8 @@ const UserLogin = asyncHandler(async (req, res) => {
     // ✅ FIX: Set Cookies
     const options = {
         httpOnly: true,
-        secure: false, // Localhost fix
-        sameSite: "lax",
+        secure: true, // Localhost fix
+        sameSite: "none",
         path: "/"
     };
 

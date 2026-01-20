@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import { Bus, ShieldCheck, Lock, ChevronLeft, Loader2 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast"; // ✅ Added Toast
+import { travellerAdmin } from "../services/api"; // ✅ Import Service
 
 export default function TravellerAdminLogin() {
   const [TravellingAdminKey, setKey] = useState("");
@@ -12,36 +14,27 @@ export default function TravellerAdminLogin() {
 
     try {
       setLoading(true);
-      // Ideally, use import.meta.env.VITE_API_URL here
-      const res = await fetch(
-        "http://localhost:8000/api/v1/traveller/traveladminlogin",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ TravellingAdminKey }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Login failed");
-        return;
-      }
+      
+      // ✅ Use travellerAdmin service
+      // Passing object { TravellingAdminKey } ensures backend receives req.body.TravellingAdminKey
+      const data = await travellerAdmin.login({ TravellingAdminKey });
 
       // Success Logic
-      alert("Traveller Admin Login Successful");
-      console.log("Traveller Admin:", data.data.travellerAdmin);
+      toast.success("Login Successful!");
       
-      // Store token or user data if needed here
-      // localStorage.setItem("travellerAdmin", JSON.stringify(data.data));
+      // Optional: Store user data
+      if (data?.data) {
+        localStorage.setItem("travellerAdmin", JSON.stringify(data.data));
+      }
       
-      navigate("/traveller/dashboard");
-    } catch (err) {
-      alert("Server error");
+      setTimeout(() => {
+        navigate("/traveller/dashboard");
+      }, 1000);
+
+    } catch (error) {
+      console.error(error);
+      const errorMsg = error.response?.data?.message || "Login failed. Check your Key.";
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -49,6 +42,7 @@ export default function TravellerAdminLogin() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans">
+      <Toaster position="top-center" reverseOrder={false} />
       
       <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] animate-fade-in-up">
         
@@ -57,7 +51,7 @@ export default function TravellerAdminLogin() {
           {/* Background Image */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-60"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2072&auto=format&fit=crop')" }} // Bus/Transport Image
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2072&auto=format&fit=crop')" }} 
           ></div>
           
           {/* Gradient Overlay */}
@@ -156,4 +150,3 @@ export default function TravellerAdminLogin() {
     </div>
   );
 }
-

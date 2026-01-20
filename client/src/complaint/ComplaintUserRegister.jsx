@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import { motion } from "framer-motion";
 import { 
   AlertTriangle, MapPin, Key, MessageCircle, Send, 
-  ShieldAlert, FileText, List, Loader2, Camera, X 
+  ShieldAlert, List, Loader2, Camera, X, FileText 
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
+// ✅ Import Service
+import { complaintUser } from "../services/api";
+
 const ComplaintUserRegister = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const fileInputRef = useRef(null); // Reference for file input to reset it properly
+  const fileInputRef = useRef(null); 
 
   // State for Text Data
   const [formData, setFormData] = useState({
@@ -26,7 +28,7 @@ const ComplaintUserRegister = () => {
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(null);
 
-  // Cleanup Memory (Avoid Memory Leaks)
+  // Cleanup Memory
   useEffect(() => {
     return () => {
       if (preview) URL.revokeObjectURL(preview);
@@ -51,7 +53,7 @@ const ComplaintUserRegister = () => {
     setPreview(null);
     setImageFile(null);
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset input value to allow re-uploading same file
+        fileInputRef.current.value = ""; 
     }
   };
 
@@ -59,7 +61,6 @@ const ComplaintUserRegister = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Validation
     if (!/^\d{6}$/.test(formData.ComplaintUserKey)) {
       toast.error("Security PIN must be exactly 6 digits");
       setLoading(false);
@@ -79,17 +80,11 @@ const ComplaintUserRegister = () => {
         dataToSend.append("complaintImage", imageFile);
       }
 
-      // 2. API Call
-      const response = await axios.post(
-        "http://localhost:8000/api/v1/complaintuser/register", 
-        dataToSend,
-        { 
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" }
-        }
-      );
+      // ✅ Use Service: complaintUser.add_complaint(data)
+      // Note: In api.js, ensure this method supports FormData (axios usually does automatically)
+      const response = await complaintUser.add_complaint(dataToSend);
 
-      if (response.status === 201 || response.status === 200) {
+      if (response) {
         toast.success("Complaint Registered Successfully!");
         
         // Reset Form

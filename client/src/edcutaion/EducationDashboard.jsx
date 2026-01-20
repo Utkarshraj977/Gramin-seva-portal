@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { 
   Users, GraduationCap, IndianRupee, Clock, MapPin, 
   Search, CheckCircle, XCircle, Loader2, Edit3, Save, X, 
-  BookOpen, Trash2, Download, Zap, TrendingUp, Phone, Mail, 
+  BookOpen, Trash2, TrendingUp, Phone, Mail, 
   MessageCircle, ShieldCheck
 } from "lucide-react";
+
+// ✅ Import centralized API service
+import { education } from "../services/api";
 
 // ⚠️ CHECK THIS PATH: If ChatRoom.jsx is in the same folder, use "./ChatRoom"
 import ChatRoom from "../Chat/ChatRoom";
@@ -39,26 +41,18 @@ const EducationDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({ fee: "", location: "", Start_time: "", End_time: "" });
 
-  // --- API CONFIG ---
-  const BASE_URL = "http://localhost:8000/api/v1/education";
-  const token = localStorage.getItem("accessToken");
-
-  const getHeaders = () => ({
-    headers: { Authorization: `Bearer ${token}` },
-    withCredentials: true
-  });
-
   // --- 1. DATA FETCHING ---
   const fetchDashboardData = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
 
+      // ✅ Use education service methods (No manual headers needed if using Cookies/Interceptor)
       const [statsRes, studentsRes] = await Promise.all([
-        axios.get(`${BASE_URL}/dashboard/stats`, getHeaders()),
-        axios.post(`${BASE_URL}/allstudent`, {}, getHeaders())
+        education.get_stats(),
+        education.get_all_students({}) // Pass empty filter object
       ]);
 
-      const sData = statsRes.data.data;
+      const sData = statsRes.data; // api.js returns response.data directly
       setStats(sData);
 
       // Auto-set teacher profile if available in stats
@@ -76,7 +70,7 @@ const EducationDashboard = () => {
           });
       }
 
-      const allStudents = studentsRes.data.data || [];
+      const allStudents = studentsRes.data || []; // api.js returns response.data
 
       // Filter Logic
       const active = [];
@@ -108,9 +102,10 @@ const EducationDashboard = () => {
       if (teacherProfile) return; 
 
       try {
-          const res = await axios.get(`http://localhost:8000/api/v1/users/current-user`, getHeaders()); 
-          if(res.data.data) {
-             setTeacherProfile(res.data.data);
+          // ✅ Use education service
+          const res = await education.get_current_teacher(); 
+          if(res.data) {
+             setTeacherProfile(res.data);
              return;
           }
       } catch (e) {
@@ -141,19 +136,18 @@ const EducationDashboard = () => {
 
     if(!window.confirm(msg)) return;
 
-    let url = "";
-    let method = "post";
-
-    if (type === "accept") url = `${BASE_URL}/allstudent/submit/${username}`;
-    else if (type === "reject") url = `${BASE_URL}/student/reject/${username}`;
-    else if (type === "remove") {
-        url = `${BASE_URL}/student/remove/${username}`;
-        method = "delete";
-    }
-
     try {
       toast.loading("Processing...");
-      await axios[method](url, {}, getHeaders());
+      
+      // ✅ Use specialized API methods from api.js
+      if (type === "accept") {
+        await education.accept_student(username);
+      } else if (type === "reject") {
+        await education.reject_student(username);
+      } else if (type === "remove") {
+        await education.remove_student(username);
+      }
+
       toast.dismiss();
       toast.success(`Action Successful: ${type}`);
       fetchDashboardData(true);
@@ -166,7 +160,8 @@ const EducationDashboard = () => {
   const handleUpdateProfile = async () => {
     try {
         toast.loading("Updating Profile...");
-        await axios.patch(`${BASE_URL}/profile/update`, profileData, getHeaders());
+        // ✅ Use education service
+        await education.update_profile(profileData);
         toast.dismiss();
         toast.success("Profile Updated");
         setIsEditing(false);
@@ -211,7 +206,7 @@ const EducationDashboard = () => {
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans pb-12 relative">
       <Toaster position="top-right" toastOptions={{ style: { background: '#1e293b', color: '#fff', border: '1px solid #334155' }}} />
 
-      {/* --- CHAT MODAL (Refactored for Safety) --- */}
+      {/* --- CHAT MODAL --- */}
       {activeChat && teacherProfile && (
         <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
             <div className="bg-slate-900 w-full max-w-2xl h-[600px] rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col relative">

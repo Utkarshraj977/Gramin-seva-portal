@@ -35,7 +35,8 @@ const ChatRoom = ({ roomId, currentUser, targetUser }) => {
   // --- 1. INITIALIZE SOCKET ---
   useEffect(() => {
     // Connect to Backend
-    const newSocket = io('http://localhost:8000'); 
+    // ✅ FIXED: Using import.meta.env.VITE_BASE_URL correctly
+    const newSocket = io(import.meta.env.VITE_BASE_URL); 
     setSocket(newSocket);
 
     // DEBUG LOGS
