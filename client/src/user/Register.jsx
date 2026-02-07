@@ -56,7 +56,7 @@ const Register = () => {
 
          // Ideally use env variable: import.meta.env.VITE_API_URL
          // Use backticks ` ` not single quotes ' ' or double quotes " "
-         await user.post(data);
+         await user.register(data);
          alert("Registration Successful!");
          navigate("/login");
 

@@ -43,7 +43,6 @@ const TravelUserDashboard = () => {
       // A. Get Current Traveller User
       // ✅ Use Service: travellerUser.get_details()
       const userRes = await travellerUser.get_details();
-      
       const fullProfile = userRes.data; // api.js returns response.data
       setTravellerProfile(fullProfile);
       
@@ -266,7 +265,7 @@ const TravelUserDashboard = () => {
                           className="flex-1 bg-red-50 text-red-600 border border-red-100 px-4 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-all"
                         >
                           {cancelingId === activeRide._id ? <Loader2 className="animate-spin" size={18} /> : <XCircle size={18} />}
-                          Cancel
+                          Cancel ridefhthrt
                         </button>
                       </div>
                     </div>

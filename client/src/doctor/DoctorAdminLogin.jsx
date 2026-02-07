@@ -19,6 +19,7 @@ export default function DoctorAdminLogin() {
     try {
       // ✅ Use Service: doctor.login()
       // Pass as object { DoctorKey } to match req.body
+     
       const res = await doctor.login({ DoctorKey });
 
       toast.success("Login Successful! Welcome Doctor.");
