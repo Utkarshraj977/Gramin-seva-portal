@@ -210,45 +210,30 @@ const getalltravellorAdbytype = asyncHandler(async (req, res) => {
 
 // Delete (Reject) traveller
 const deleteServetravelleruser = asyncHandler(async (req, res) => {
-    const { param } = req.params; // Ye passenger ki User ID honi chahiye
+    const { param } = req.params; // Ye passenger ki User ID (69870322b879184d966c99bd) hai
     const para = param.trim();
-    const adminUserId = req.user._id; // Login Admin ki ID
+    const adminOwner = req.user._id;
 
     if (!para) throw new ApiError(400, "Passenger ID is required");
 
     const travelleradmin = await TravellingAdmin.findOneAndUpdate(
         {
-            userInfo: adminUserId, // Admin ki apni profile check karega
-            // ✅ FIX: "AllTraveller.userInfo" check karein, na ki "_id"
-            "AllTraveller.userInfo": new mongoose.Types.ObjectId(para)
+            userInfo: adminOwner,
+            "AllTraveller.userInfo": para // Direct string ya ObjectId match
         },
         {
-            // ✅ FIX: userInfo ke basis par array se nikalein
-            $pull: { AllTraveller: { userInfo: new mongoose.Types.ObjectId(para) } }
+            $pull: { AllTraveller: { userInfo: para } } // Isse wo object array se nikal jayega
         },
-        {
-            new: true
-        }
+        { new: true }
     )
-    .select("-TravellingAdminKey")
-    .populate("userInfo", "username fullname coverImage email phone avatar");
+    .populate("userInfo", "username fullname avatar")
+    .populate("AllTraveller.userInfo", "username fullname avatar");
 
-    if (!travelleradmin) {
-        throw new ApiError(404, "Passenger not found in your trip list");
-    }
+    if (!travelleradmin) throw new ApiError(404, "Passenger not found in your list");
 
-    // Ek extra step: Agar aapne Passenger ki profile mein bhi 'AllRide' field rakha hai, 
-    // toh usey bhi null karna chahiye (optional, aapke schema par depend karta hai)
-
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                travelleradmin,
-                "Passenger removed successfully"
-            )
-        );
+    return res.status(200).json(
+        new ApiResponse(200, travelleradmin, "Passenger removed successfully")
+    );
 });
 
 // ✅ ACCEPT TRAVELLER LOGIC
