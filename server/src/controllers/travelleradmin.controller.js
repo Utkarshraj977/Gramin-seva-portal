@@ -210,20 +210,21 @@ const getalltravellorAdbytype = asyncHandler(async (req, res) => {
 
 // Delete (Reject) traveller
 const deleteServetravelleruser = asyncHandler(async (req, res) => {
-    const { param } = req.params;
+    const { param } = req.params; // Ye passenger ki User ID honi chahiye
     const para = param.trim();
-    const user = req.user._id;
+    const adminUserId = req.user._id; // Login Admin ki ID
 
-    if (!para) throw new ApiError(400, "traveller user id is required for delete the user");
-    if (!user) throw new ApiError(400, "user id not found");
+    if (!para) throw new ApiError(400, "Passenger ID is required");
 
     const travelleradmin = await TravellingAdmin.findOneAndUpdate(
         {
-            userInfo: user,
-            "AllTraveller._id": new mongoose.Types.ObjectId(para)
+            userInfo: adminUserId, // Admin ki apni profile check karega
+            // ✅ FIX: "AllTraveller.userInfo" check karein, na ki "_id"
+            "AllTraveller.userInfo": new mongoose.Types.ObjectId(para)
         },
         {
-            $pull: { AllTraveller: { _id: new mongoose.Types.ObjectId(para) } }
+            // ✅ FIX: userInfo ke basis par array se nikalein
+            $pull: { AllTraveller: { userInfo: new mongoose.Types.ObjectId(para) } }
         },
         {
             new: true
@@ -232,7 +233,12 @@ const deleteServetravelleruser = asyncHandler(async (req, res) => {
     .select("-TravellingAdminKey")
     .populate("userInfo", "username fullname coverImage email phone avatar");
 
-    if (!travelleradmin) throw new ApiError(404, "traveller Admin not found or traveller user not associated");
+    if (!travelleradmin) {
+        throw new ApiError(404, "Passenger not found in your trip list");
+    }
+
+    // Ek extra step: Agar aapne Passenger ki profile mein bhi 'AllRide' field rakha hai, 
+    // toh usey bhi null karna chahiye (optional, aapke schema par depend karta hai)
 
     return res
         .status(200)
@@ -240,7 +246,7 @@ const deleteServetravelleruser = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 travelleradmin,
-                "traveller updated succesfully"
+                "Passenger removed successfully"
             )
         );
 });
