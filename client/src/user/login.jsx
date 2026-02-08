@@ -22,7 +22,7 @@ export default function Login() {
         email,
         password,
       });
-
+      await user.getdetail();
       // ✅ REAL success check
    
         navigate("/profile");

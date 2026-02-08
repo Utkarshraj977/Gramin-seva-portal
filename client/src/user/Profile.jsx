@@ -14,28 +14,23 @@ export default function Dashboard() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [hasSession, setHasSession] = useState(true);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("userData");
-    if (!storedUser) {
-      setHasSession(false);
-      setLoading(false);
-    } else {
-      loadUser();
-    }
-  }, []);
+useEffect(() => {
+  loadUser();
+}, []);
 
-  const loadUser = async () => {
-    try {
-      const res = await userApi.getdetail();
-      
-      
-      setUserData(res.data.data || res.data); 
-    } catch (error) {
-      console.error("Failed to load user");
-    } finally {
-      setLoading(false);
-    }
-  };
+
+const loadUser = async () => {
+  try {
+    const res = await userApi.getdetail();
+    setUserData(res.data.data || res.data);
+    setHasSession(true);
+  } catch (error) {
+    setHasSession(false);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   if (loading) {
     return (
