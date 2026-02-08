@@ -5,7 +5,7 @@ import { createServer } from "http" // 1. Import HTTP Server
 import { Server } from "socket.io"  // 2. Import Socket.io
 
 const app = express()
-
+app.set("trust proxy", 1);
 // 3. Create HTTP server from Express app
 const server = createServer(app)
 
