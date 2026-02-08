@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // 1. Axios Instance (Common for everyone)
 const api = axios.create({
-    baseURL: '/api/v1', // Vite Proxy handles this
-    withCredentials: true, // Crucial for cookies
+    baseURL: import.meta.env.VITE_API_URL,
+    withCredentials: true,
 });
 
 // ==========================================
