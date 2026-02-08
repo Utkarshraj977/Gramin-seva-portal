@@ -21,7 +21,6 @@ export default function Login() {
         username,
         password,
       });
-      await user.getdetail();
       // ✅ REAL success check
    
         navigate("/profile");
