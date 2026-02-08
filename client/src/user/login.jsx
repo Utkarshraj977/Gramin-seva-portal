@@ -35,7 +35,7 @@ export default function Login() {
 
       // 3. Success -> Navigate
       // Agar admin hai to admin panel, nahi to profile
-      navigate("/doctor/admin"); // Ya "/profile" jo bhi apka route ho
+      navigate("/profile"); // Ya "/profile" jo bhi apka route ho
       
     } catch (err) {
       console.error("Login Error:", err);
