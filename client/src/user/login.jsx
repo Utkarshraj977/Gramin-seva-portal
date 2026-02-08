@@ -4,8 +4,7 @@ import { user } from "../services/api";
 
 export default function Login() {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(""); // Email hata diya jaisa aapne comment kiya tha
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,21 +16,34 @@ export default function Login() {
     setError("");
 
     try {
+      // 1. API Call (Backend automatically HttpOnly Cookie set karega)
       const res = await user.login({
         username,
         password,
       });
-      // ✅ REAL success check
-   
-        navigate("/profile");
+
+      // ✅ 2. LocalStorage me data save karein (UI ke liye)
+      // Check karein ki response me user data kahan hai (usually res.data.data.user ya res.data.user)
+      const userData = res.data?.user || res.data?.data?.user;
+      
+      if (userData) {
+          localStorage.setItem("userData", JSON.stringify(userData));
+          
+          // Agar accessToken bhi localStorage me rakhna chahte ho (Optional, Cookie is better)
+          // localStorage.setItem("accessToken", res.data.accessToken);
+      }
+
+      // 3. Success -> Navigate
+      // Agar admin hai to admin panel, nahi to profile
+      navigate("/doctor/admin"); // Ya "/profile" jo bhi apka route ho
       
     } catch (err) {
+      console.error("Login Error:", err);
       setError(err.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-700 to-green-300 p-5 animate-fadeIn">
@@ -70,15 +82,6 @@ export default function Login() {
               required
               className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
             />
-
-            {/* <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
-            /> */}
 
             <input
               type="password"
