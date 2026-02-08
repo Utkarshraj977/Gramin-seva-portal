@@ -43,8 +43,11 @@ const TravelUserDashboard = () => {
       // A. Get Current Traveller User
       // ✅ Use Service: travellerUser.get_details()
       const userRes = await travellerUser.get_details();
+      
       const fullProfile = userRes.data; // api.js returns response.data
       setTravellerProfile(fullProfile);
+      
+     
       
       if (fullProfile && fullProfile.userInfo) {
           setCurrentUser(fullProfile.userInfo);
@@ -54,22 +57,27 @@ const TravelUserDashboard = () => {
       // ✅ Use Service: travellerAdmin.get_all_admins()
       // Note: We use the admin service to fetch the list, assuming it's accessible to users
       const driversRes = await travellerAdmin.get_all_admins();
+    
+      
       
       const driversList = driversRes.data?.Alladmin || driversRes.data || [];
-      const validDrivers = Array.isArray(driversList) ? driversList : [];
       
+      const validDrivers = Array.isArray(driversList) ? driversList : [];
+        
+
       // Apply Client-side category filter
       const filteredDrivers = filterCategory === "All" 
         ? validDrivers 
         : validDrivers.filter(d => d.category === filterCategory || d.CarDetails?.category === filterCategory);
 
       setAdmins(filteredDrivers);
-
       // C. Find Active Ride
       // Priority 1: Use the 'AllRide' field directly from the traveller profile if populated
       if (fullProfile.AllRide && typeof fullProfile.AllRide === 'object') {
           setActiveRide(fullProfile.AllRide);
+        
       } 
+
       // Priority 2: Scan the drivers list (Fallback)
       else {
           const myAcceptedDriver = validDrivers.find(driver => {
@@ -80,6 +88,8 @@ const TravelUserDashboard = () => {
             // Check for accepted status
             return myRecord && (myRecord.message === 'accepted' || myRecord.status === 'accepted' || fullProfile.AllRide === driver._id);
           });
+          
+          
 
           if (myAcceptedDriver) {
               setActiveRide(myAcceptedDriver);
@@ -172,10 +182,21 @@ const TravelUserDashboard = () => {
   };
 
   // Filter Logic for Search Bar
-  const displayedAdmins = admins.filter((admin) => {
-    if (!searchQuery) return true;
-    return admin.userInfo?.fullname?.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+ const displayedAdmins = admins.filter((admin) => {
+  if (!searchQuery) return true;
+
+  const query = searchQuery.toLowerCase();
+
+  const nameMatch =
+    admin.userInfo?.fullname?.toLowerCase().includes(query);
+
+  const locationMatch =
+    admin.location?.toLowerCase().includes(query);
+
+  return nameMatch || locationMatch;
+});
+
+
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-10 relative">
@@ -235,8 +256,9 @@ const TravelUserDashboard = () => {
                           <span className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm">
                             <CheckCircle size={12} /> Confirmed
                           </span>
+                          
                         </div>
-                        <h2 className="text-3xl font-bold text-slate-800">{activeRide.userInfo?.fullname}</h2>
+                        <h2 className="text-3xl font-bold text-slate-800">{activeRide.userInfo?.fullName}</h2>
                         <p className="text-slate-500 font-medium flex items-center gap-2 mt-1">
                           <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-bold border border-slate-200 text-sm">{activeRide.carNumber}</span>
                           <span>•</span>
@@ -332,7 +354,9 @@ const TravelUserDashboard = () => {
                   <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 leading-none">{activeChatDriver.userInfo?.fullname}</h3>
+                  <h3 className="font-bold text-slate-800 leading-none">{activeChatDriver.userInfo?.fullName}</h3>
+                  {console.log("sammmmmmmmmmmmmmm" ,activeChatDriver)}
+                  
                   <span className="text-xs text-slate-500">Active Now</span>
                 </div>
               </div>

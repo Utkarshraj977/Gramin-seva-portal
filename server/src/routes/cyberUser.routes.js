@@ -5,7 +5,8 @@ import {
   getAllCyberAdmins,
   applyToCyber,
   getCyberUserProfile,
-  withdrawApplication
+  withdrawApplication,
+  updateCyberUserProfile  // Add this
 } from "../controllers/cyberUser.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -15,11 +16,13 @@ router.use(verifyJWT);
 // Auth & Profile
 router.route("/register").post(registerCyberUser);
 router.route("/login").post(loginCyberUser);
-router.route("/profile").get(getCyberUserProfile);
+router.route("/profile")
+    .get(getCyberUserProfile)
+    .patch(updateCyberUserProfile);  // Add this
 
 // Actions
-router.route("/allcyber").get(getAllCyberAdmins);      // List shops
-router.route("/apply/:username").post(applyToCyber);   // Apply
-router.route("/withdraw").post(withdrawApplication);   // Cancel
+router.route("/allcyber").get(getAllCyberAdmins);
+router.route("/apply/:username").post(applyToCyber);
+router.route("/withdraw").post(withdrawApplication);
 
 export default router;

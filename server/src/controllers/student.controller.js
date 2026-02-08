@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { Student } from "../models/educationStudent.model.js"; 
-import { Education } from "../models/educationAdmin.model.js"; // Teacher Model
+import { Education } from "../models/educationAdmin.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 // ==================================================
@@ -28,7 +28,7 @@ const createDetail = asyncHandler(async (req, res) => {
         isStudent: true,
         StudentKey,
         userInfo: userData,
-        message: "pending"
+        message: "" // Empty initially
     });
 
     return res.status(201).json(new ApiResponse(201, student, "Student registered successfully"));
@@ -51,7 +51,6 @@ const loginStudent = asyncHandler(async (req, res) => {
 // 3. GET ALL TEACHERS (With Search Filters)
 // ==================================================
 const getAllTeacher = asyncHandler(async (req, res) => {
-    // Search Filters (Subject, Location, Fee)
     const { subject, location, minFee, maxFee } = req.query;
     
     const query = { isEducator: true };
@@ -59,9 +58,10 @@ const getAllTeacher = asyncHandler(async (req, res) => {
     if (location) query.location = { $regex: location, $options: "i" };
 
     let teachers = await Education.find(query)
-        .select("-EducatorKey -userInfo.password -userInfo.refreshToken"); 
+        .select("-EducatorKey -userInfo.password -userInfo.refreshToken")
+        .populate("student");
 
-    // Custom Fee Filter
+    // Fee Filter
     if (minFee || maxFee) {
         teachers = teachers.filter(t => {
             const feeVal = parseInt(t.fee) || 0;
@@ -75,21 +75,22 @@ const getAllTeacher = asyncHandler(async (req, res) => {
 });
 
 // ==================================================
-// 4. GET SINGLE TEACHER PROFILE (View Details)
+// 4. GET SINGLE TEACHER PROFILE
 // ==================================================
 const getTeacherProfile = asyncHandler(async (req, res) => {
     const { username } = req.params;
     if (!username) throw new ApiError(400, "Username required");
 
     const teacher = await Education.findOne({ "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } })
-        .select("-EducatorKey -userInfo.password");
+        .select("-EducatorKey -userInfo.password")
+        .populate("student");
 
     if (!teacher) throw new ApiError(404, "Teacher not found");
     return res.status(200).json(new ApiResponse(200, teacher, "Teacher details fetched"));
 });
 
 // ==================================================
-// 5. APPLY TO TEACHER (Select)
+// 5. APPLY TO TEACHER (FIXED)
 // ==================================================
 const selectTeacher = asyncHandler(async (req, res) => {
     const { username } = req.params; 
@@ -98,35 +99,35 @@ const selectTeacher = asyncHandler(async (req, res) => {
     const currentStudent = await Student.findOne({ "userInfo._id": userId });
     if (!currentStudent) throw new ApiError(404, "Register as student first");
 
-    const updatedTeacher = await Education.findOneAndUpdate(
-        { "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } },
-        { $addToSet: { student: currentStudent._id } }, 
-        { new: true }
-    ).select("-EducatorKey");
+    const teacher = await Education.findOne({ 
+        "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } 
+    });
+    
+    if (!teacher) throw new ApiError(404, "Teacher not found");
 
-    if (!updatedTeacher) throw new ApiError(404, "Teacher not found");
+    // Check if already applied
+    const alreadyApplied = teacher.student.some(s => String(s) === String(currentStudent._id));
+    if (alreadyApplied) throw new ApiError(409, "Already applied to this teacher");
 
-    // Status pending set karein
+    // Add to teacher's list
+    teacher.student.push(currentStudent._id);
+    await teacher.save();
+
+    // Set pending status
     currentStudent.message = "pending";
     await currentStudent.save();
 
-    return res.status(200).json(new ApiResponse(200, updatedTeacher, "Applied successfully"));
+    return res.status(200).json(new ApiResponse(200, teacher, "Application sent successfully"));
 });
 
 // ==================================================
-// 6. STUDENT DASHBOARD (Stats & Status)
-// ==================================================
-// ==================================================
-// 6. STUDENT DASHBOARD (Updated Fix)
+// 6. STUDENT DASHBOARD
 // ==================================================
 const getStudentDashboard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
 
-    // 1. Student Profile Dhundho
     const currentStudent = await Student.findOne({ "userInfo._id": userId });
 
-    // ✅ FIX: Agar student profile nahi mili, to 404 Error mat phenko.
-    // Balki "null" profile return karo taaki frontend crash na ho.
     if (!currentStudent) {
         return res.status(200).json(new ApiResponse(200, {
             profile: null,
@@ -139,27 +140,32 @@ const getStudentDashboard = asyncHandler(async (req, res) => {
         }, "New user - No profile created yet"));
     }
 
-    // 2. Agar student mil gaya, to aage ka data fetch karo
     const myTeachers = await Education.find({
         student: currentStudent._id
-    }).select("-EducatorKey -userInfo.password");
+    })
+    .select("-EducatorKey -userInfo.password")
+    .populate("student");
 
     const totalApplied = myTeachers.length;
     let totalEstimatedFees = 0;
-    myTeachers.forEach(t => { totalEstimatedFees += (parseInt(t.fee) || 0); });
+    
+    myTeachers.forEach(t => { 
+        totalEstimatedFees += (parseInt(t.fee) || 0); 
+    });
 
     const dashboardData = {
         profile: currentStudent,
         appliedTeachers: myTeachers,
         stats: {
             totalApplications: totalApplied,
-            currentStatus: currentStudent.message,
+            currentStatus: currentStudent.message || "No applications",
             totalFees: totalEstimatedFees
         }
     };
 
     return res.status(200).json(new ApiResponse(200, dashboardData, "Dashboard ready"));
 });
+
 // ==================================================
 // 7. WITHDRAW APPLICATION
 // ==================================================
@@ -176,7 +182,15 @@ const withdrawApplication = asyncHandler(async (req, res) => {
         { new: true }
     );
 
-    if (!updatedTeacher) throw new ApiError(404, "Teacher not found or not applied");
+    if (!updatedTeacher) throw new ApiError(404, "Teacher not found");
+
+    // Reset message if no applications left
+    const remainingApplications = await Education.countDocuments({ student: currentStudent._id });
+    if (remainingApplications === 0) {
+        currentStudent.message = "";
+        await currentStudent.save();
+    }
+
     return res.status(200).json(new ApiResponse(200, null, "Application withdrawn"));
 });
 
@@ -198,11 +212,18 @@ const updateStudentProfile = asyncHandler(async (req, res) => {
         { new: true }
     );
 
+    if (!updatedStudent) throw new ApiError(404, "Student profile not found");
+
     return res.status(200).json(new ApiResponse(200, updatedStudent, "Profile updated"));
 });
 
-// Exports (Dhyan dein yahan function names par)
 export { 
-    createDetail, loginStudent, getAllTeacher, getTeacherProfile,
-    selectTeacher, getStudentDashboard, withdrawApplication, updateStudentProfile 
+    createDetail, 
+    loginStudent, 
+    getAllTeacher, 
+    getTeacherProfile,
+    selectTeacher, 
+    getStudentDashboard, 
+    withdrawApplication, 
+    updateStudentProfile 
 };

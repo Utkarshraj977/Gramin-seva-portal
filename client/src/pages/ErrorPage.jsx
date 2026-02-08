@@ -4,7 +4,7 @@ export const Errorpage = () => {
   const error = useRouteError();
   const navigate = useNavigate();
 
-  console.log("⚠️ Error Info: ", error);
+  
 
   // Function to go back cleanly
   const handleGoBack = () => {

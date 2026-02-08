@@ -27,7 +27,7 @@ export default function Dashboard() {
   const loadUser = async () => {
     try {
       const res = await userApi.getdetail();
-      console.log(res.data);
+      
       
       setUserData(res.data.data || res.data); 
     } catch (error) {

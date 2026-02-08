@@ -6,6 +6,7 @@ import { User } from "../models/user.model.js";
 import { TravellingUser } from "../models/travellingUser.model.js"; // Added import
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
+import { log } from "console";
 
 // Traveller Admin (Car Owner) Register
 const travellingAdminReg = asyncHandler(async (req, res) => {
@@ -88,8 +89,9 @@ const travellerAdminLogin = asyncHandler(async (req, res) => {
 
 // Get all Traveller Admin 
 const allTravellerAdmin = asyncHandler(async (req, res) => {
-    const Alladmin = await TravellingAdmin.find().populate("userInfo", "username fullname coverImage email phone avatar");
+    const Alladmin = await TravellingAdmin.find().populate("userInfo", "username fullName coverImage email phone avatar");
 
+    
     if (!Alladmin || Alladmin.length === 0) {
         throw new ApiError(404, "No Traveller Admin Found");
     }
@@ -180,6 +182,8 @@ const getalltravellorAdbytype = asyncHandler(async (req, res) => {
 // ✅ REJECT/REMOVE USER (Fixes 500/400 Error)
 const deleteServetravelleruser = asyncHandler(async (req, res) => {
     const { param } = req.params;
+
+    
     const passengerUserId = param.trim();
     const adminUserId = req.user._id;
 
@@ -190,7 +194,8 @@ const deleteServetravelleruser = asyncHandler(async (req, res) => {
     // 1. Find Admin Profile
     const adminProfile = await TravellingAdmin.findOne({ userInfo: adminUserId });
     if (!adminProfile) throw new ApiError(404, "Admin profile not found");
-
+   
+    
     // 2. Remove from Admin's List using 'userInfo' match
     const updatedAdmin = await TravellingAdmin.findByIdAndUpdate(
         adminProfile._id,
@@ -214,38 +219,43 @@ const deleteServetravelleruser = asyncHandler(async (req, res) => {
 });
 
 // ✅ ACCEPT TRAVELLER LOGIC (Fixes 500/400 Error)
+// ✅ ACCEPT TRAVELLER (CORRECT)
 const acceptTraveller = asyncHandler(async (req, res) => {
     const { travellerId } = req.params;
     const adminUserId = req.user._id;
 
-    if (!travellerId || travellerId === 'undefined') {
+    if (!travellerId || travellerId === "undefined") {
         throw new ApiError(400, "Traveller User ID is required");
     }
 
     const adminProfile = await TravellingAdmin.findOne({ userInfo: adminUserId });
-    if (!adminProfile) throw new ApiError(404, "Admin profile not found");
+    if (!adminProfile) {
+        throw new ApiError(404, "Admin profile not found");
+    }
 
-    // Update status looking for 'userInfo' match in array
-    const travelleradmin = await TravellingAdmin.findOneAndUpdate(
+    const updatedAdmin = await TravellingAdmin.findOneAndUpdate(
         {
             _id: adminProfile._id,
-            "AllTraveller.userInfo": travellerId
+            "AllTraveller.userInfo": travellerId,
+            "AllTraveller.status": "pending"
         },
         {
             $set: {
-                "AllTraveller.$.message": "accepted",
                 "AllTraveller.$.status": "accepted"
             }
         },
         { new: true }
     );
 
-    if (!travelleradmin) throw new ApiError(404, "Passenger not found in your list");
+    if (!updatedAdmin) {
+        throw new ApiError(400, "Traveller not found or already processed");
+    }
 
     return res.status(200).json(
-        new ApiResponse(200, travelleradmin, "Traveller accepted successfully")
+        new ApiResponse(200, updatedAdmin, "Traveller accepted successfully")
     );
 });
+
 
 // User leaves an Admin (Cancel request/ride)
 const leaveAdmin = asyncHandler(async (req, res) => {
@@ -253,11 +263,11 @@ const leaveAdmin = asyncHandler(async (req, res) => {
     const { adminId } = req.params;
 
     if (!user) throw new ApiError(404, "User not found");
-    
+
     const admin = await TravellingAdmin.findByIdAndUpdate(
         adminId,
-        { 
-            $pull: { AllTraveller: { userInfo: user } } 
+        {
+            $pull: { AllTraveller: { userInfo: user } }
         },
         { new: true }
     );
@@ -269,15 +279,15 @@ const leaveAdmin = asyncHandler(async (req, res) => {
     );
 });
 
-export { 
+export {
     leaveAdmin,
-    travellingAdminReg, 
-    travellerAdminLogin, 
-    allTravellerAdmin, 
-    getalltravellorAdbytype, 
-    deleteServetravelleruser, 
-    getalltravellorAdbycategory, 
-    getTravellerAdminByParams, 
+    travellingAdminReg,
+    travellerAdminLogin,
+    allTravellerAdmin,
+    getalltravellorAdbytype,
+    deleteServetravelleruser,
+    getalltravellorAdbycategory,
+    getTravellerAdminByParams,
     gettravelleradmin,
-    acceptTraveller 
+    acceptTraveller
 };

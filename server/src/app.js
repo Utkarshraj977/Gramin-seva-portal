@@ -42,6 +42,8 @@ import travelleruser from './routes/travelleruser.routes.js'
 import cyberadmin from './routes/cyber.routes.js'
 import cyberuser from './routes/cyberUser.routes.js'
 import educationStudentRouter from "./routes/student.routes.js";
+import documentRouter from './routes/document.routes.js';
+
 // --- Route Declarations ---
 app.use("/api/v1/users", userRouter) 
 app.use("/api/v1/doctor", doctorRouter)
@@ -54,6 +56,7 @@ app.use("/api/v1/traveller", travelleradmin)
 app.use("/api/v1/traveller", travelleruser) 
 app.use("/api/v1/cyberadmin", cyberadmin)
 app.use("/api/v1/cyberuser", cyberuser) 
+app.use("/api/v1/documents", documentRouter);
 
 
 // --- SOCKET.IO & WEBRTC LOGIC ---
@@ -61,12 +64,12 @@ app.use("/api/v1/cyberuser", cyberuser)
 
 
 io.on("connection", (socket) => {
-    console.log(`Socket Connected: ${socket.id}`);
+   
 
     // 1. Join a specific Room (e.g., "DOCID-PATIENTID")
     socket.on("join-room", (roomId) => {
         socket.join(roomId);
-        console.log(`User ${socket.id} joined room: ${roomId}`);
+       
     });
 
     // 2. Text Chat Logic
@@ -100,7 +103,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log("User Disconnected", socket.id);
+        
     });
 });
 

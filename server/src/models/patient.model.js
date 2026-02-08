@@ -26,12 +26,26 @@ const patientSchema = new Schema(
         PatientKey:{
             type:String,
             required:true,
-            match: [/^\d{6}$/, "DoctorKey must be exactly 6 digits"],
+            match: [/^\d{6}$/, "PatientKey must be exactly 6 digits"],
         },
         location:{
             type:String,
             required:true
-        }
+        },
+        // ✅ NEW: Array to store connected doctors
+        doctors: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "Doctor"
+            }
+        ],
+        // ✅ NEW: Array to store pending doctor requests
+        pendingDoctorRequests: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "Doctor"
+            }
+        ]
     },
      {
         timestamps: true

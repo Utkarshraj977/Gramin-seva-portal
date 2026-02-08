@@ -215,11 +215,33 @@ const withdrawApplication = asyncHandler(async (req, res) => {
         new ApiResponse(200, shop, "Application withdrawn successfully")
     );
 });
+
+
+const updateCyberUserProfile = asyncHandler(async (req, res) => {
+    const { message, Start_time, End_time, location } = req.body;
+    
+    const cyberUser = await CyberUser.findOne({ "userInfo._id": req.user?._id });
+    
+    if (!cyberUser) throw new ApiError(404, "Profile not found");
+
+    if (message) cyberUser.message = message;
+    if (Start_time) cyberUser.Start_time = Start_time;
+    if (End_time) cyberUser.End_time = End_time;
+    if (location) cyberUser.location = location;
+
+    await cyberUser.save();
+    
+    return res.status(200).json(
+        new ApiResponse(200, cyberUser, "Profile Updated Successfully")
+    );
+});
+
 export {
     registerCyberUser,
     loginCyberUser,
     getCyberUserProfile,
     getAllCyberAdmins,
     applyToCyber,
-    withdrawApplication
+    withdrawApplication,
+    updateCyberUserProfile  // Add this
 };

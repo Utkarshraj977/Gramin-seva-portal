@@ -3,7 +3,6 @@ import {
     adminregister, 
     adminlogin, 
     getAllcomplaint, 
-    getbyusername, 
     getuserbyid,
     resolveComplaint,
     rejectComplaint,
@@ -18,35 +17,31 @@ import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// --- AUTH ROUTES ---
-// Admin Register (Certificate Upload ke sath)
+// Authentication
 router.route("/register").post(
     verifyJWT,
-    upload.fields([
-        {
-            name: "complaintAdmin_certificate",
-            maxCount: 1
-        }
-    ]),
+    upload.fields([{ name: "complaintAdmin_certificate", maxCount: 1 }]),
     adminregister
 );
-
 router.route("/login").post(verifyJWT, adminlogin);
 
-// --- DASHBOARD & PROFILE ---
-router.route("/dashboard/stats").get(verifyJWT, getAdminStats); // New Stats Route
-router.route("/profile/update").patch(verifyJWT, updateAdminProfile);
+// Profile
 router.route("/getuserbyid").get(verifyJWT, getuserbyid);
-router.route("/admin/:username").get(verifyJWT, getbyusername);
+router.route("/profile/update").patch(verifyJWT, updateAdminProfile);
 
-// --- COMPLAINT MANAGEMENT ---
-router.route("/allcomplaints").get(verifyJWT, getAllcomplaint); // Note: Method GET kar diya hai (Standard)
-router.route("/public/officials").get( getAllOfficials);
-// Actions on Complaints
-router.route("/resolve/:id").patch(verifyJWT, resolveComplaint); // Status -> Resolved
-router.route("/reject/:id").patch(verifyJWT, rejectComplaint);   // Status -> Rejected
+// Dashboard
+router.route("/dashboard/stats").get(verifyJWT, getAdminStats);
+router.route("/allcomplaints").get(verifyJWT, getAllcomplaint);
 
+// ✅ Connection Requests
 router.route("/requests").get(verifyJWT, getConnectionRequests);
-router.route("/connection/:status/:userId").post(verifyJWT, handleConnectionRequest);
+router.route("/requests/:status/:userId").patch(verifyJWT, handleConnectionRequest);
+
+// Complaint Actions
+router.route("/resolve/:id").patch(verifyJWT, resolveComplaint);
+router.route("/reject/:id").patch(verifyJWT, rejectComplaint);
+
+// Public Route
+router.route("/public/officials").get(getAllOfficials);
 
 export default router;

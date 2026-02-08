@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
-import { Education } from "../models/educationAdmin.model.js"; // Aapka Model
+import { Education } from "../models/educationAdmin.model.js";
 import { Student } from "../models/educationStudent.model.js"; 
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -33,7 +33,7 @@ const createDetail = asyncHandler(async (req, res) => {
     const { password, refreshToken, ...userData } = user.toObject(); 
 
     const education = await Education.create({
-        fee, // Schema me String hai, direct save karein
+        fee,
         Experience,
         category,
         Start_time,
@@ -63,19 +63,23 @@ const loginTeacher = asyncHandler(async (req, res) => {
 });
 
 // ============================================================================
-// 3. GET ALL STUDENTS (List Fetch)
+// 3. GET ALL STUDENTS (FIXED - Returns full student data with status)
 // ============================================================================
 const getAllStudent = asyncHandler(async (req, res) => {
-    const existingEducation = await Education.findOne({ "userInfo._id": req.user?._id, isEducator: true })
-        .populate("student"); // Schema me ObjectId hai, isliye .populate() mast kaam karega
+    const existingEducation = await Education.findOne({ 
+        "userInfo._id": req.user?._id, 
+        isEducator: true 
+    }).populate("student");
 
     if (!existingEducation) throw new ApiError(404, "Teacher profile not found");
 
-    return res.status(200).json(new ApiResponse(200, existingEducation.student || [], "Students fetched"));
+    return res.status(200).json(
+        new ApiResponse(200, existingEducation.student || [], "Students fetched")
+    );
 });
 
 // ============================================================================
-// 4. ACCEPT STUDENT (Status Update)
+// 4. ACCEPT STUDENT (FIXED - Updates student message)
 // ============================================================================
 const teacherSubmit = asyncHandler(async (req, res) => {
     const { username } = req.params; 
@@ -83,7 +87,7 @@ const teacherSubmit = asyncHandler(async (req, res) => {
 
     const updatedStudent = await Student.findOneAndUpdate(
         { "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } },
-        { $set: { message: "selected", status: "selected" } },
+        { $set: { message: "selected" } },
         { new: true }
     );
 
@@ -93,36 +97,44 @@ const teacherSubmit = asyncHandler(async (req, res) => {
 });
 
 // ============================================================================
-// 5. REJECT STUDENT (Status Update)
+// 5. REJECT STUDENT (FIXED)
 // ============================================================================
 const rejectStudent = asyncHandler(async (req, res) => {
     const { username } = req.params;
+    
     const updatedStudent = await Student.findOneAndUpdate(
         { "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } },
-        { $set: { message: "rejected", status: "rejected" } },
+        { $set: { message: "rejected" } },
         { new: true }
     );
 
     if (!updatedStudent) throw new ApiError(404, "Student not found");
+    
     return res.status(200).json(new ApiResponse(200, updatedStudent, "Student Rejected"));
 });
 
 // ============================================================================
-// 6. REMOVE STUDENT (Delete from List - FIXED FOR OBJECT_ID)
+// 6. REMOVE STUDENT (Delete from List)
 // ============================================================================
 const removeStudent = asyncHandler(async (req, res) => {
     const { username } = req.params;
     
-    // Pehle Student ka ID nikalo username se
-    const studentToRemove = await Student.findOne({ "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } });
+    const studentToRemove = await Student.findOne({ 
+        "userInfo.username": { $regex: new RegExp("^" + username + "$", "i") } 
+    });
+    
     if (!studentToRemove) throw new ApiError(404, "Student not found");
 
-    // $pull use karein (Schema me ObjectId hai, toh ye perfect kaam karega)
+    // Remove from teacher's list
     const updatedEducation = await Education.findOneAndUpdate(
         { "userInfo._id": req.user?._id, isEducator: true },
         { $pull: { student: studentToRemove._id } },
         { new: true }
     );
+
+    // Reset student's message
+    studentToRemove.message = "";
+    await studentToRemove.save();
 
     return res.status(200).json(new ApiResponse(200, null, "Student removed from list"));
 });
@@ -145,29 +157,38 @@ const updateTeacherProfile = asyncHandler(async (req, res) => {
         { new: true }
     );
 
+    if (!updatedEducation) throw new ApiError(404, "Teacher profile not found");
+
     return res.status(200).json(new ApiResponse(200, updatedEducation, "Profile Updated"));
 });
 
 // ============================================================================
-// 8. DASHBOARD STATS (Calculations)
+// 8. DASHBOARD STATS (FIXED - Proper status counting)
 // ============================================================================
 const getDashboardStats = asyncHandler(async (req, res) => {
-    const education = await Education.findOne({ "userInfo._id": req.user?._id, isEducator: true })
-        .populate("student");
+    const education = await Education.findOne({ 
+        "userInfo._id": req.user?._id, 
+        isEducator: true 
+    }).populate("student");
 
     if (!education) throw new ApiError(404, "Teacher not found");
 
     const students = education.student || [];
     const totalStudents = students.length;
     
-    // Active = Selected
-    const activeStudents = students.filter(s => s.message === "selected" || s.status === "selected").length;
+    // Count statuses correctly
+    const activeStudents = students.filter(s => 
+        s.message === "selected" || s.message === "accepted" || s.message === "enrolled"
+    ).length;
     
-    // Pending = Not selected & Not rejected
-    const pendingRequests = students.filter(s => s.message !== "selected" && s.message !== "rejected").length;
+    const pendingRequests = students.filter(s => 
+        s.message === "pending" || s.message === "" || !s.message
+    ).length;
 
-    // Earnings Calculation (Fee String hai, Number me convert karein)
-    // Agar fee "500" hai to thik, agar "500/month" hai to parseInt sirf 500 uthayega
+    const rejectedCount = students.filter(s => 
+        s.message === "rejected"
+    ).length;
+
     const numericFee = parseInt(education.fee) || 0; 
     const estimatedEarnings = activeStudents * numericFee;
 
@@ -175,6 +196,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         totalStudents,
         activeStudents,
         pendingRequests,
+        rejectedCount,
         estimatedEarnings,
         fee: education.fee,
         location: education.location,
@@ -183,19 +205,30 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, stats, "Stats Fetched"));
 });
+
+// ============================================================================
+// 9. GET CURRENT USER
+// ============================================================================
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200, 
-                req.user, // This contains _id, fullname, email, etc.
+                req.user,
                 "Current user fetched successfully"
             )
         );
 });
 
 export { 
-    createDetail, loginTeacher, getAllStudent, teacherSubmit, 
-    rejectStudent, removeStudent,getCurrentUser, updateTeacherProfile, getDashboardStats 
+    createDetail, 
+    loginTeacher, 
+    getAllStudent, 
+    teacherSubmit, 
+    rejectStudent, 
+    removeStudent,
+    getCurrentUser, 
+    updateTeacherProfile, 
+    getDashboardStats 
 };

@@ -78,7 +78,7 @@ const setuserIntoadmin = asyncHandler(async (req, res) => {
     if (travelUser.AllRide) {
         throw new ApiError(400, "You are already in a ride. Cancel it first.");
     }
-
+   
     // 3. Prepare the object for the Admin's list
     const userObj = travelUser.toObject();
     
@@ -130,8 +130,6 @@ const cancelRide = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Traveller profile not found");
     }
 
-    console.log("Attempting cancel for user:", userId);
-    console.log("Current AllRide value:", travelUser.AllRide);
 
     const adminId = travelUser.AllRide;
 
@@ -174,7 +172,7 @@ const travelleruser = asyncHandler(async (req, res) => {
 
     const travelleruser = await TravellingUser.findOne({ userInfo: user })
         .select("-TravellingUserKey")
-        .populate("userInfo", "username fullname coverImage email phone avatar")
+        .populate("userInfo", "username fullName coverImage email phone avatar")
         .populate("AllRide"); // Populate ride info if they have one
 
     if (!travelleruser) throw new ApiError(404, "Traveller user not found");

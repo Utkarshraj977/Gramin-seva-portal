@@ -11,11 +11,11 @@ const doctorSchema = new Schema(
             type: String,
             required: true,
         },
-        Type: {     //human or animal or both
+        Type: {
             type: String,
             required: true,
         },
-        category: {   //gen physician or any
+        category: {
             type: String,
             required: true,
         },
@@ -37,6 +37,13 @@ const doctorSchema = new Schema(
                 ref: "Patient"
             }
         ],
+        // ✅ NEW: Array to store pending patient requests
+        pendingPatientRequests: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: "Patient"
+            }
+        ],
         userInfo: {
             type: Schema.Types.ObjectId,
             ref: "User"
@@ -44,20 +51,17 @@ const doctorSchema = new Schema(
         DoctorKey: {
             type: String,
             required: true,
-            match: [/^\d{6}$/, "DoctorKey must be exactly 6 digits"], // ✅ sirf 6 digit
+            match: [/^\d{6}$/, "DoctorKey must be exactly 6 digits"],
         },
-
         location: {
             type: String,
             required: true
         }
-
     },
     {
         timestamps: true
     }
 )
-
 
 doctorSchema.pre("save", async function (next) {
     if (!this.isModified("DoctorKey")) return next();
@@ -70,6 +74,4 @@ doctorSchema.methods.isDoctorKeyCorrect = async function (DoctorKey) {
     return await bcrypt.compare(DoctorKey, this.DoctorKey)
 }
 
-
 export const Doctor = mongoose.model("Doctor", doctorSchema)
-

@@ -43,21 +43,18 @@ export const user = {
 // ==========================================
 //  DOCTOR API REQUESTS 
 // ==========================================
+
 export const doctor = {
     register: async (formData) => {
         const response = await api.post('/doctor/doctorregister', formData);
         return response.data;
     },
     login: async (credentials) => {
-        const response = await api.post('/doctor/login', credentials);
-        return response.data;
-    },
-    logout: async () => {
-        const response = await api.post('/doctor/logout');
+        const response = await api.post('/doctor/doctorlogin', credentials);
         return response.data;
     },
     get_profile: async () => {
-        const response = await api.get('/doctor/current-doctor');
+        const response = await api.get('/doctor/currentdoctor');
         return response.data;
     },
     get_all_doctors: async () => {
@@ -65,15 +62,58 @@ export const doctor = {
         return response.data;
     },
     update_profile: async (data) => {
-        const response = await api.patch('/doctor/update-account', data);
+        const response = await api.patch('/doctor/update-profile', data);
         return response.data;
     },
-    update_dashboard: async (data) => {
-        const response = await api.patch('/doctor/dashboard-update', data);
+    // ✅ NEW
+    accept_request: async (patientId) => {
+        const response = await api.patch(`/doctor/accept-request/${patientId}`);
+        return response.data;
+    },
+    reject_request: async (patientId) => {
+        const response = await api.patch(`/doctor/reject-request/${patientId}`);
+        return response.data;
+    },
+    remove_patient: async (patientId) => {
+        const response = await api.patch(`/doctor/removepatient/${patientId}`);
         return response.data;
     }
 };
 
+// ==========================================
+//  PATIENT API REQUESTS
+// ==========================================
+export const patient = {
+    register: async (data) => {
+        const response = await api.post('/patient/patientregister', data);
+        return response.data;
+    },
+    login: async (credentials) => {
+        const response = await api.post('/patient/patientlogin', credentials);
+        return response.data;
+    },
+    get_current_patient: async () => {
+        const response = await api.get('/patient/currentpatient');
+        return response.data;
+    },
+    // ✅ NEW
+    request_doctor: async (doctorId) => {
+        const response = await api.patch(`/patient/request-doctor/${doctorId}`);
+        return response.data;
+    },
+    cancel_request: async (doctorId) => {
+        const response = await api.patch(`/patient/cancel-request/${doctorId}`);
+        return response.data;
+    },
+    remove_doctor: async (doctorId) => {
+        const response = await api.patch(`/patient/remove-doctor/${doctorId}`);
+        return response.data;
+    },
+    update_profile: async (data) => {
+        const response = await api.patch('/patient/update-profile', data);
+        return response.data;
+    }
+};
 // ==========================================
 //  EDUCATION / TEACHER API REQUESTS
 // ==========================================
@@ -156,97 +196,122 @@ export const student = {
     }
 };
 
-// ==========================================
-//  COMPLAINT ADMIN API REQUESTS
-// ==========================================
-export const complaintAdmin = {
-    register: async (formData) => {
-        const response = await api.post('/ComplaintAdmin/register', formData);
-        return response.data;
-    },
-    login: async (credentials) => {
-        const response = await api.post('/ComplaintAdmin/login', credentials);
-        return response.data;
-    },
-    get_current_admin: async () => {
-        const response = await api.get('/ComplaintAdmin/getuserbyid');
-        return response.data;
-    },
-    update_profile: async (data) => {
-        const response = await api.patch('/ComplaintAdmin/profile/update', data);
-        return response.data;
-    },
-    get_stats: async () => {
-        const response = await api.get('/ComplaintAdmin/dashboard/stats');
-        return response.data;
-    },
-    get_admin_by_username: async (username) => {
-        const response = await api.get(`/ComplaintAdmin/admin/${username}`);
-        return response.data;
-    },
-    get_all_complaints: async (filters = {}) => {
-        const response = await api.get('/ComplaintAdmin/allcomplaints', { params: filters });
-        return response.data;
-    },
-    resolve_complaint: async (id) => {
-        const response = await api.patch(`/ComplaintAdmin/resolve/${id}`);
-        return response.data;
-    },
-    reject_complaint: async (id) => {
-        const response = await api.patch(`/ComplaintAdmin/reject/${id}`);
-        return response.data;
-    },
-    get_all_officials: async (filters = {}) => {
-        const response = await api.get('/ComplaintAdmin/public/officials', { params: filters });
-        return response.data;
-    },
-    get_connection_requests: async () => {
-        const response = await api.get('/ComplaintAdmin/requests');
-        return response.data;
-    },
-    handle_connection_request: async (status, userId) => {
-        const response = await api.post(`/ComplaintAdmin/connection/${status}/${userId}`);
-        return response.data;
-    }
-};
-
-// ==========================================
-//  COMPLAINT USER API REQUESTS
-// ==========================================
+// ============================================================================
+// COMPLAINT USER APIs
+// ============================================================================
 export const complaintUser = {
-    get_public_feed: async (filters = {}) => {
-        const response = await api.get('/complaintuser/public-feed', { params: filters });
+    // Authentication
+    register: async (data) => {
+        const response = await api.post('/complaintuser/register', data);
         return response.data;
     },
-    register: async (formData) => {
-        const response = await api.post('/complaintuser/register', formData);
-        return response.data;
-    },
+    
     login: async (credentials) => {
         const response = await api.post('/complaintuser/login', credentials);
         return response.data;
     },
-    add_complaint: async (formData) => {
-        const response = await api.post('/complaintuser/add', formData);
-        return response.data;
-    },
+
+    // Dashboard
     get_dashboard: async () => {
         const response = await api.get('/complaintuser/dashboard');
         return response.data;
     },
+
+    // ✅ Connection Management
+    connect_to_admin: async (adminId) => {
+        const response = await api.post(`/complaintuser/connect/${adminId}`);
+        return response.data;
+    },
+
+    // ✅ File Complaint (to connected admin)
+    file_complaint: async (adminId, formData) => {
+        const response = await api.post(`/complaintuser/file-complaint/${adminId}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
+    // Complaint Management
     get_details: async (id) => {
         const response = await api.get(`/complaintuser/details/${id}`);
         return response.data;
     },
+    
     withdraw_complaint: async (id) => {
         const response = await api.delete(`/complaintuser/withdraw/${id}`);
         return response.data;
+    }
+};
+
+// ============================================================================
+// COMPLAINT ADMIN APIs
+// ============================================================================
+export const complaintAdmin = {
+    // Authentication
+    register: async (formData) => {
+        const response = await api.post('/ComplaintAdmin/register', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
     },
-    connect_admin: async (adminId) => {
-        const response = await api.post(`/complaintuser/connect/${adminId}`);
+    
+    login: async (credentials) => {
+        const response = await api.post('/ComplaintAdmin/login', credentials);
+        return response.data;
+    },
+
+    // Profile
+    get_current_admin: async () => {
+        const response = await api.get('/ComplaintAdmin/getuserbyid');
+        return response.data;
+    },
+    
+    update_profile: async (data) => {
+        const response = await api.patch('/ComplaintAdmin/profile/update', data);
+        return response.data;
+    },
+
+    // Dashboard
+    get_stats: async () => {
+        const response = await api.get('/ComplaintAdmin/dashboard/stats');
+        return response.data;
+    },
+    
+    get_all_complaints: async () => {
+        const response = await api.get('/ComplaintAdmin/allcomplaints');
+        return response.data;
+    },
+
+    // ✅ Connection Requests
+    get_connection_requests: async () => {
+        const response = await api.get('/ComplaintAdmin/requests');
+        return response.data;
+    },
+    
+    handle_connection_request: async (status, userId) => {
+        const response = await api.patch(`/ComplaintAdmin/requests/${status}/${userId}`);
+        return response.data;
+    },
+
+    // Complaint Actions
+    resolve_complaint: async (id, responseMessage) => {
+        const response = await api.patch(`/ComplaintAdmin/resolve/${id}`, { responseMessage });
+        return response.data;
+    },
+    
+    reject_complaint: async (id, reason) => {
+        const response = await api.patch(`/ComplaintAdmin/reject/${id}`, { reason });
+        return response.data;
+    },
+
+    // Public
+    get_all_officials: async () => {
+        const response = await api.get('/ComplaintAdmin/public/officials');
         return response.data;
     }
 };
+
+
 
 // ==========================================
 //  TRAVELLER ADMIN API REQUESTS
@@ -320,27 +385,7 @@ export const travellerUser = {
     }
 };
 
-// ==========================================
-//  PATIENT API REQUESTS (New ✅)
-// ==========================================
-export const patient = {
-    register: async (data) => {
-        const response = await api.post('/patient/patientregister', data);
-        return response.data;
-    },
-    login: async (credentials) => {
-        const response = await api.post('/patient/patientlogin', credentials);
-        return response.data;
-    },
-    get_current_patient: async () => {
-        const response = await api.get('/patient/currentpatient');
-        return response.data;
-    },
-    select_doctor: async (doctorId) => {
-        const response = await api.patch(`/patient/selectpatient/${doctorId}`);
-        return response.data;
-    }
-};
+
 
 // ==========================================
 //  CYBER ADMIN API REQUESTS (New ✅)
@@ -382,8 +427,14 @@ export const cyberAdmin = {
     update_user_status: async (username, status) => {
         const response = await api.post('/cyberadmin/cyberSumbit', { username, status });
         return response.data;
+    },
+        // Update Profile
+    update_profile: async (formData) => {
+        const response = await api.patch('/cyberadmin/profile', formData);
+        return response.data;
     }
 };
+
 
 export const cyberUser = {
     // 1. User Login
@@ -421,6 +472,42 @@ export const cyberUser = {
     withdraw_application: async (adminUsername) => {
         const response = await api.post('/cyberuser/withdraw', { adminUsername });
         return response.data;
+    },
+     // Update Profile
+    update_profile: async (data) => {
+        const response = await api.patch('/cyberuser/profile', data);
+        return response.data;
     }
 };
+
+// ==========================================
+//  DOCUMENT API REQUESTS
+// ==========================================
+export const documents = {
+    // Upload Document
+    upload: async (formData) => {
+        const response = await api.post('/documents/upload', formData);
+        return response.data;
+    },
+
+    // Get Documents for a Room
+    getRoomDocuments: async (roomId) => {
+        const response = await api.get(`/documents/room/${roomId}`);
+        return response.data;
+    },
+
+    // Update Document Status
+    updateStatus: async (documentId, status) => {
+        const response = await api.patch(`/documents/status/${documentId}`, { status });
+        return response.data;
+    },
+
+    // Delete Document
+    delete: async (documentId) => {
+        const response = await api.delete(`/documents/delete/${documentId}`);
+        return response.data;
+    }
+};
+
+
 export default api;

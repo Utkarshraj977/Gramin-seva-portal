@@ -3,11 +3,11 @@ import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, CheckCircle, Clock, XCircle, MapPin, 
-  Briefcase, MessageSquare, RefreshCw, X, Zap
+  Briefcase, MessageSquare, RefreshCw, X, Zap, Settings, FileText
 } from "lucide-react";
-import ChatRoom from '../Chat/ChatRoom'; 
-
-// ✅ Import Service
+import ChatRoom from '../Chat/ChatRoom';
+import DocumentUpload from '../components/DocumentUpload';
+import ProfileUpdateModal from '../components/ProfileUpdateModal';
 import { cyberAdmin } from "../services/api";
 
 const CyberDashboard = () => {
@@ -16,19 +16,18 @@ const CyberDashboard = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   
-  // Chat State
   const [activeChatUser, setActiveChatUser] = useState(null);
+  const [activeDocUser, setActiveDocUser] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
-      // ✅ Use Service: cyberAdmin methods
       const [statsRes, usersRes, profileRes] = await Promise.all([
         cyberAdmin.get_stats(),
         cyberAdmin.get_all_users(),
         cyberAdmin.get_profile(),
       ]);
 
-      // api.js returns response.data directly
       setStats(statsRes.data || statsRes);
       setUsers(usersRes.data || usersRes);
       setProfile(profileRes.data || profileRes);
@@ -48,7 +47,6 @@ const CyberDashboard = () => {
 
   const handleStatusUpdate = async (username, status) => {
     try {
-      // ✅ Use Service: cyberAdmin.update_user_status(username, status)
       await cyberAdmin.update_user_status(username, status);
       toast.success(`User ${status}`);
       fetchDashboardData();
@@ -57,7 +55,11 @@ const CyberDashboard = () => {
     }
   };
 
-  // Filter Users
+  const handleProfileUpdate = async (formData) => {
+    await cyberAdmin.update_profile(formData);
+    fetchDashboardData();
+  };
+
   const activeClients = users.filter(u => u.message === 'selected' || u.status === 'selected');
   const pendingClients = users.filter(u => u.message !== 'selected' && u.status !== 'selected' && u.message !== 'rejected');
 
@@ -77,6 +79,13 @@ const CyberDashboard = () => {
                 </p>
              </div>
              <div className="flex items-center gap-4">
+                 <button
+                   onClick={() => setShowProfileModal(true)}
+                   className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                 >
+                   <Settings size={16} />
+                   Edit Profile
+                 </button>
                  <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold text-sm">
                    Open: {profile?.Start_time} - {profile?.End_time}
                  </div>
@@ -93,7 +102,7 @@ const CyberDashboard = () => {
           <StatCard icon={<Clock size={24}/>} label="Pending Actions" value={stats.pending} color="bg-amber-500" />
         </div>
 
-        {/* --- SECTION 1: ACTIVE CLIENTS (CHAT ENABLED) --- */}
+        {/* ACTIVE CLIENTS */}
         {activeClients.length > 0 && (
             <div className="mb-10">
                 <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -111,12 +120,18 @@ const CyberDashboard = () => {
                                     <p className="text-xs text-slate-500">{client.userInfo?.email}</p>
                                 </div>
                             </div>
-                            <div className="mt-auto">
+                            <div className="mt-auto flex gap-2">
                                 <button 
                                     onClick={() => setActiveChatUser(client)}
-                                    className="w-full bg-blue-600 text-white py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-100"
+                                    className="flex-1 bg-blue-600 text-white py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-100"
                                 >
-                                    <MessageSquare size={16}/> Chat Now
+                                    <MessageSquare size={16}/> Chat
+                                </button>
+                                <button 
+                                    onClick={() => setActiveDocUser(client)}
+                                    className="flex-1 bg-emerald-600 text-white py-2 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-100"
+                                >
+                                    <FileText size={16}/> Docs
                                 </button>
                             </div>
                         </div>
@@ -125,7 +140,7 @@ const CyberDashboard = () => {
             </div>
         )}
 
-        {/* --- SECTION 2: PENDING REQUESTS --- */}
+        {/* PENDING REQUESTS */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
@@ -160,7 +175,7 @@ const CyberDashboard = () => {
         </div>
       </div>
 
-      {/* --- CHAT MODAL --- */}
+      {/* CHAT MODAL */}
       {activeChatUser && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in">
            <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl">
@@ -179,8 +194,6 @@ const CyberDashboard = () => {
                
                <div className="flex-1 overflow-hidden bg-slate-50">
                    <ChatRoom 
-                      // Room ID: [AdminID, UserID] sorted
-                      // profile._id is admin ID, activeChatUser.userInfo._id is user ID
                       roomId={[String(profile.userInfo?._id), String(activeChatUser.userInfo?._id)].sort().join("-")}
                       currentUser={{ 
                           name: profile.userInfo?.username, 
@@ -195,6 +208,41 @@ const CyberDashboard = () => {
            </div>
         </div>
       )}
+
+      {/* DOCUMENT MODAL */}
+      {activeDocUser && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+           <div className="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto">
+               <div className="sticky top-0 bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
+                   <div className="flex items-center gap-3">
+                       <FileText className="text-emerald-600" size={24} />
+                       <div>
+                           <h3 className="font-bold text-slate-800">Document Exchange</h3>
+                           <p className="text-xs text-slate-500">with {activeDocUser.userInfo?.username}</p>
+                       </div>
+                   </div>
+                   <button onClick={() => setActiveDocUser(null)} className="hover:bg-slate-100 p-2 rounded-full transition"><X size={20}/></button>
+               </div>
+               
+               <div className="p-6">
+                   <DocumentUpload 
+                      roomId={[String(profile.userInfo?._id), String(activeDocUser.userInfo?._id)].sort().join("-")}
+                      currentUserId={profile.userInfo?._id}
+                      targetUserId={activeDocUser.userInfo?._id}
+                   />
+               </div>
+           </div>
+        </div>
+      )}
+
+      {/* PROFILE UPDATE MODAL */}
+      <ProfileUpdateModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        currentProfile={profile}
+        onUpdate={handleProfileUpdate}
+        isAdmin={true}
+      />
     </div>
   );
 };

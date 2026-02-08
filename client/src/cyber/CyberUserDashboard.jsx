@@ -4,12 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   MapPin, Clock, Search, Send, XOctagon, 
   Briefcase, Loader2, CheckCircle, MessageSquare, 
-  ShieldCheck, X, User, Zap
+  ShieldCheck, X, User, Zap, FileText, Settings
 } from "lucide-react";
-// ✅ Import ChatRoom
-import ChatRoom from '../Chat/ChatRoom'; 
-
-// ✅ Import Services
+import ChatRoom from '../Chat/ChatRoom';
+import DocumentUpload from '../components/DocumentUpload';
+import ProfileUpdateModal from '../components/ProfileUpdateModal';
 import { cyberUser } from "../services/api";
 
 const CyberUserDashboard = () => {
@@ -19,20 +18,19 @@ const CyberUserDashboard = () => {
   const [loading, setLoading] = useState(true); 
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Chat State
   const [activeChatShop, setActiveChatShop] = useState(null);
+  const [activeDocShop, setActiveDocShop] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const fetchData = async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
       
-      // ✅ Use Service
       const [shopsRes, profileRes] = await Promise.all([
         cyberUser.get_all_shops(),
         cyberUser.get_profile(),
       ]);
 
-      // api.js returns response.data
       setShops(shopsRes.data || []);
       if (!searchTerm) setFilteredShops(shopsRes.data || []);
       setMyProfile(profileRes.data);
@@ -50,7 +48,6 @@ const CyberUserDashboard = () => {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Search Logic
   useEffect(() => {
     if (!searchTerm) {
       setFilteredShops(shops);
@@ -63,7 +60,6 @@ const CyberUserDashboard = () => {
     }
   }, [searchTerm, shops]);
 
-  // --- HELPERS ---
   const getMyApplication = (shop) => {
     if (!myProfile || !shop.cyberUsers) return null;
     return shop.cyberUsers.find(user => 
@@ -71,17 +67,14 @@ const CyberUserDashboard = () => {
     );
   };
 
-  // Find the Active/Approved Shop
   const activeShop = shops.find(shop => {
       const app = getMyApplication(shop);
       return app && (app.message === 'selected' || app.status === 'selected');
   });
 
-  // --- ACTIONS ---
   const handleApply = async (adminUsername) => {
     try {
       toast.loading("Sending Request...");
-      // ✅ Use Service
       await cyberUser.apply_shop(adminUsername);
       toast.dismiss();
       toast.success("Application Sent!");
@@ -95,13 +88,17 @@ const CyberUserDashboard = () => {
   const handleWithdraw = async (adminUsername) => {
     if(!window.confirm(`Withdraw request?`)) return;
     try {
-      // ✅ Use Service
       await cyberUser.withdraw_application(adminUsername);
       toast.success("Withdrawn");
       fetchData(true);
     } catch (error) {
       toast.error("Withdrawal Failed");
     }
+  };
+
+  const handleProfileUpdate = async (data) => {
+    await cyberUser.update_profile(data);
+    fetchData();
   };
 
   return (
@@ -125,15 +122,24 @@ const CyberUserDashboard = () => {
                     className="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full border-none focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
             </div>
-            <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100">
-                {myProfile?.userInfo?.username?.charAt(0).toUpperCase() || <User size={20}/>}
+            <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition"
+                  title="Edit Profile"
+                >
+                  <Settings size={20} className="text-slate-600" />
+                </button>
+                <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold border border-blue-100">
+                    {myProfile?.userInfo?.username?.charAt(0).toUpperCase() || <User size={20}/>}
+                </div>
             </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 mt-6">
         
-        {/* --- SECTION 1: ACTIVE APPROVED CONNECTION --- */}
+        {/* ACTIVE APPROVED CONNECTION */}
         <AnimatePresence>
         {activeShop && (
             <motion.div 
@@ -164,7 +170,13 @@ const CyberUserDashboard = () => {
                                 onClick={() => setActiveChatShop(activeShop)}
                                 className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
                             >
-                                <MessageSquare size={18}/> Message Shop
+                                <MessageSquare size={18}/> Chat
+                            </button>
+                            <button 
+                                onClick={() => setActiveDocShop(activeShop)}
+                                className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                            >
+                                <FileText size={18}/> Documents
                             </button>
                         </div>
                     </div>
@@ -173,7 +185,7 @@ const CyberUserDashboard = () => {
         )}
         </AnimatePresence>
 
-        {/* --- SECTION 2: ALL SHOPS --- */}
+        {/* ALL SHOPS */}
         <div className="mb-4 flex items-center gap-2">
             <Briefcase className="text-blue-600" size={20}/>
             <h2 className="text-lg font-bold text-slate-800">Available Cyber Centers</h2>
@@ -222,11 +234,10 @@ const CyberUserDashboard = () => {
         )}
       </main>
 
-      {/* --- CHAT MODAL --- */}
+      {/* CHAT MODAL */}
       {activeChatShop && myProfile && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
            <div className="relative w-full max-w-lg h-[80vh] flex flex-col bg-white rounded-2xl overflow-hidden shadow-2xl">
-               {/* Chat Header */}
                <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
                    <div className="flex items-center gap-3">
                        <img src={activeChatShop.cyber_shopPic?.url} className="w-10 h-10 rounded-full border border-gray-100 object-cover" alt="Shop"/>
@@ -240,7 +251,6 @@ const CyberUserDashboard = () => {
                
                <div className="flex-1 overflow-hidden bg-slate-50">
                    <ChatRoom 
-                      // Room ID: [AdminID, UserID] sorted
                       roomId={[String(activeChatShop.userInfo?._id), String(myProfile.userInfo?._id)].sort().join("-")}
                       currentUser={{ 
                           name: myProfile.userInfo?.username, 
@@ -255,6 +265,41 @@ const CyberUserDashboard = () => {
            </div>
         </div>
       )}
+
+      {/* DOCUMENT MODAL */}
+      {activeDocShop && myProfile && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+           <div className="relative w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto">
+               <div className="sticky top-0 bg-white p-4 flex justify-between items-center border-b border-gray-100 z-10">
+                   <div className="flex items-center gap-3">
+                       <FileText className="text-emerald-600" size={24} />
+                       <div>
+                           <h3 className="font-bold text-slate-800">Document Exchange</h3>
+                           <p className="text-xs text-slate-500">with {activeDocShop.userInfo?.username}</p>
+                       </div>
+                   </div>
+                   <button onClick={() => setActiveDocShop(null)} className="hover:bg-slate-100 p-2 rounded-full transition"><X size={20}/></button>
+               </div>
+               
+               <div className="p-6">
+                   <DocumentUpload 
+                      roomId={[String(activeDocShop.userInfo?._id), String(myProfile.userInfo?._id)].sort().join("-")}
+                      currentUserId={myProfile.userInfo?._id}
+                      targetUserId={activeDocShop.userInfo?._id}
+                   />
+               </div>
+           </div>
+        </div>
+      )}
+
+      {/* PROFILE UPDATE MODAL */}
+      <ProfileUpdateModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        currentProfile={myProfile}
+        onUpdate={handleProfileUpdate}
+        isAdmin={false}
+      />
     </div>
   );
 };

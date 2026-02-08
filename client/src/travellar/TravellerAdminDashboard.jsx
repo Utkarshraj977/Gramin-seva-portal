@@ -60,6 +60,8 @@ const TravellerAdminDashboard = () => {
 
   const handleAccept = async (travellerId) => {
     try {
+    
+      
       // ✅ Service Call: Using the specific accept route
       await travellerAdmin.accept_traveller(travellerId);
       toast.success("Passenger Accepted! Moved to My Rides.");
@@ -73,7 +75,8 @@ const TravellerAdminDashboard = () => {
   // Filter Lists Logic
   const pendingPassengers = adminData?.AllTraveller?.filter(t => t.message !== 'accepted' && t.status !== 'accepted') || [];
   const activePassengers = adminData?.AllTraveller?.filter(t => t.message === 'accepted' || t.status === 'accepted') || [];
-
+ 
+  
   if (loading) return <div className="h-screen flex justify-center items-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
 
   return (
@@ -186,14 +189,14 @@ const TravellerAdminDashboard = () => {
 
 // --- SUB COMPONENT: PASSENGER CARD ---
 const PassengerCard = ({ traveller, type, onAccept, onReject, onChat }) => {
-  const user = traveller.userInfo || {};
-  
-  // We need to know which ID the backend expects. 
-  // Usually for 'Delete', it wants the User ID. 
-  // For 'Accept', it wants the Traveller/Request ID (the `traveller._id`).
-  const passengerUserId = user._id || user; 
-  const travellerRequestId = traveller._id; 
+ const user = traveller;
 
+  const passengerUserId = user.userInfo._id ; 
+
+  const travellerRequestId = user.userInfo._id; 
+ 
+  
+const data=user.userInfo
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all flex flex-col">
       <div className={`h-1.5 ${type === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
@@ -201,10 +204,10 @@ const PassengerCard = ({ traveller, type, onAccept, onReject, onChat }) => {
       <div className="p-4 flex-1">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-3">
-            <img src={user.avatar?.url || "https://ui-avatars.com/api/?name=User"} className="h-10 w-10 rounded-full bg-gray-100 object-cover border border-gray-200" alt="u" />
+            <img src={data.avatar?.url || "https://ui-avatars.com/api/?name=User"} className="h-10 w-10 rounded-full bg-gray-100 object-cover border border-gray-200" alt="u" />
             <div>
-              <h4 className="font-bold text-slate-800">{user.fullname || "Guest User"}</h4>
-              <p className="text-xs text-slate-500">@{user.username}</p>
+              <h4 className="font-bold text-slate-800">{data.fullName || "Guest User"}</h4>
+              <p className="text-xs text-slate-500">@{data.username}</p>
             </div>
           </div>
           {type === 'active' && <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded border border-emerald-200">ONBOARD</span>}

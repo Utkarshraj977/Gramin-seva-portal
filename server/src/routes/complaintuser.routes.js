@@ -2,52 +2,36 @@ import { Router } from "express";
 import { 
     userregister, 
     UserLogin, 
+    connectToAdmin,
     fileComplaint, 
     getUserDashboard, 
-    getAllPublicComplaints, 
     deleteComplaint, 
-    getComplaintDetails, 
-    connectToAdmin
+    getComplaintDetails
 } from "../controllers/complaintUser.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-// Public Route (Bina Login ke dekhne ke liye)
-router.route("/public-feed").get(getAllPublicComplaints);
+// Authentication
+router.route("/register").post(verifyJWT, userregister);
+router.route("/login").post(verifyJWT, UserLogin);
 
-// --- SECURED ROUTES (Login Required) ---
-// Note: Iska matlab user ko pehle main website par login hona padega
-router.use(verifyJWT);
+// Dashboard
+router.route("/dashboard").get(verifyJWT, getUserDashboard);
 
-// Register Route (Ab ye Image + Data dono lega)
-router.route("/register").post(
-    upload.fields([
-        {
-            name: "complaintImage", // Frontend se field name yahi hona chahiye
-            maxCount: 1
-        }
-    ]),
-    verifyJWT,userregister
-);
-
-// Login Route
-router.route("/login").post( verifyJWT, UserLogin);
-
-// Existing User Add Complaint Route
-router.route("/add").post(
-    upload.fields([
-        {
-            name: "complaintImage",
-            maxCount: 1
-        }
-    ]),
-    verifyJWT,fileComplaint
-);
-
-router.route("/dashboard").get( getUserDashboard);
-router.route("/details/:id").get(verifyJWT, getComplaintDetails);
-router.route("/withdraw/:id").delete(verifyJWT ,deleteComplaint);
+// ✅ Connection Management
 router.route("/connect/:adminId").post(verifyJWT, connectToAdmin);
+
+// ✅ File Complaint (to specific connected admin)
+router.route("/file-complaint/:adminId").post(
+    verifyJWT,
+    upload.fields([{ name: "complaintImage", maxCount: 1 }]),
+    fileComplaint
+);
+
+// Complaint Management
+router.route("/details/:id").get(verifyJWT, getComplaintDetails);
+router.route("/withdraw/:id").delete(verifyJWT, deleteComplaint);
+
 export default router;
