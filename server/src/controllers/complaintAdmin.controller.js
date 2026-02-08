@@ -107,12 +107,13 @@ const adminlogin = asyncHandler(async (req, res) => {
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(req.user._id);
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-        path: "/"
-    };
+const options = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  path: "/",
+};
+
 
     return res
         .status(200)
