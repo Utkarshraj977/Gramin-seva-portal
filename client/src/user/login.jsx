@@ -19,7 +19,6 @@ export default function Login() {
     try {
       const res = await user.login({
         username,
-        email,
         password,
       });
       await user.getdetail();
