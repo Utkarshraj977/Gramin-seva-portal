@@ -5,12 +5,7 @@ import ChatRoom from '../Chat/ChatRoom'; // Ensure path is correct
 import { 
   BookOpen, Search, MapPin, IndianRupee, Clock,
   CheckCircle, XCircle, Loader2, Send, Trash2, Edit3, X, Filter, 
-<<<<<<< HEAD
-  GraduationCap, RefreshCcw, Sparkles, ShieldCheck,
-  LogIn
-=======
-  GraduationCap, RefreshCcw, ShieldCheck, MessageSquare
->>>>>>> 6b4482a80cdbeb445ef0132555bcfafb814b9253
+  RefreshCcw, ShieldCheck, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -31,7 +26,8 @@ const StudentDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({ clas: "", subject: "", board: "", location: "" });
 
-  const BASE_URL = "http://localhost:8000/api/v1/education/student";
+  const API_BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:8000";
+  const BASE_URL = `${API_BASE_URL}/api/v1/education/student`;
   const token = localStorage.getItem("accessToken");
   const getHeaders = () => ({ headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
 
@@ -138,53 +134,25 @@ const StudentDashboard = () => {
 
   // --- LOGIC: Check Status (Pending vs Selected) ---
   const getApplicationStatus = (teacher) => {
-    console.log("sammmm");
-    console.log(dashboardData?.profile );
-    
       if (!dashboardData?.profile || !teacher) return { isApplied: false, status: null };
 
       const safeStr = (val) => (val ? String(val) : "");
       const myProfileId = safeStr(dashboardData.profile._id);
-<<<<<<< HEAD
-      const myUserId = safeStr(dashboardData.profile.userInfo?._id);
 
-      console.log("3333mm");
-        console.log(dashboardData.profile.userInfo?._id );
-        console.log(dashboardData.profile._id );
-      // 1. Check inside Teacher's Students Array
-      console.log(Array.isArray(teacher.student));
-      if ( Array.isArray(teacher.student)) {
-
-          const match = teacher.student.find(s => {
-            console.log(s);
-              const s_pid = s.student?._id ? safeStr(s.student._id) : safeStr(s.student);
-              const s_uid = s.userInfo?._id ? safeStr(s.userInfo._id) : safeStr(s.userInfo);
-              return (s_pid === myProfileId || s_uid === myUserId);
-=======
-      
-      // Look inside the Teacher's 'students' array
-      // Ideally, the backend populates this. If not, we might need a better check.
-      if (teacher.students && Array.isArray(teacher.students)) {
-          // Find 'me' in their list
-          const match = teacher.students.find(s => {
-              // The student field might be an ID string or an Object
-              const s_id = s.student?._id ? safeStr(s.student._id) : safeStr(s.student);
-              return s_id === myProfileId;
->>>>>>> 6b4482a80cdbeb445ef0132555bcfafb814b9253
-          });
+      // The backend exposes populated student profiles under teacher.student.
+      if (Array.isArray(teacher.student)) {
+          const match = teacher.student.find((student) =>
+              safeStr(student?._id ?? student) === myProfileId
+          );
 
           if (match) {
-              return { isApplied: true, status: match.message || "pending" };
+              return { isApplied: true, status: match.status || match.message || "pending" };
           }
       }
 
       // Fallback: Check 'appliedTeachers' list from dashboard data
-      // This confirms we applied, but doesn't give specific status inside the teacher object unless populated
       const inMyList = dashboardData.appliedTeachers?.some(t => safeStr(t._id) === safeStr(teacher._id));
       if (inMyList) {
-          // If we are in the list, default to pending, BUT
-          // if the backend 'appliedTeachers' endpoint returns status, we use that. 
-          // Assuming default pending if not found in teacher.students
           return { isApplied: true, status: "pending" };
       }
 
