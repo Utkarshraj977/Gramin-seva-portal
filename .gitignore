@@ -1,10 +1,14 @@
-# dependencies
 node_modules/
-server/node_modules/
-
-# env
 .env
-
-# build
+.env.*
+!.env.example
 dist/
 build/
+coverage/
+.vite/
+*.log
+.vscode/
+.idea/
+.DS_Store
+server/public/temp/*
+!server/public/temp/.gitkeep
